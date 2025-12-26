@@ -98,6 +98,7 @@ namespace CozyWorldGeneration
  
         }
         
+        // https://dev.to/joestrout/wang-2-corner-tiles-544k
         private int CalculateConfiguration(TileType bottomLeft, TileType bottomRight, TileType topLeft, TileType topRight)
         {
             int config = 0;

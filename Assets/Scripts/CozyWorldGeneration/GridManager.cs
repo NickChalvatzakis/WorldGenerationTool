@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using CozyWorldGeneration.Layers;
+using UnityEngine;
 
 namespace CozyWorldGeneration
 {
@@ -8,6 +9,11 @@ namespace CozyWorldGeneration
         [SerializeField] private int gridWidth = 10;
         [SerializeField] private int gridHeight = 10;
         [SerializeField] private float tileSize = 1f;
+        
+        [Header("Layer Collections")]
+        [SerializeField] private LayerCollection worldLayerCollection;
+        [SerializeField] private LayerCollection visualLayerCollection;
+
 
         [Header("Debug")] 
         [SerializeField] private bool drawGizmos = true;
@@ -20,6 +26,10 @@ namespace CozyWorldGeneration
         public int Width => gridWidth;
         public int Height => gridHeight;
         public float TileSize => tileSize;
+        
+        public LayerCollection WorldLayerCollection => worldLayerCollection;
+        public LayerCollection VisualLayerCollection => visualLayerCollection;
+
 
         private void Awake()
         {
@@ -29,12 +39,35 @@ namespace CozyWorldGeneration
 
         public void InitializeGrids()
         {
+
+            if (worldLayerCollection == null)
+            {
+                worldLayerCollection = new LayerCollection("World Layers");
+            }
+
+            if (visualLayerCollection == null)
+            {
+                visualLayerCollection = new LayerCollection("Visual Layers");
+            }
+            
             WorldGrid = new WorldGrid(gridWidth, gridHeight);
-            // VisualGrid has to be smaller due to the Offset
-            VisualGrid = new VisualGrid(gridWidth, gridHeight, WorldGrid); 
+            VisualGrid = new VisualGrid(gridWidth - 1, gridHeight - 1, WorldGrid); 
             WorldGrid.LinkVisualGrid(VisualGrid);
             
             Debug.Log("Grid Manager Initialized");
+        }
+
+        private void InitializeLayerTextures()
+        {
+            foreach (var layer in worldLayerCollection.Layers)
+            {
+                layer?.InitializePreviewTexture(gridWidth, gridHeight);
+            }
+            foreach (var layer in visualLayerCollection.Layers)
+            {
+                layer?.InitializePreviewTexture(gridWidth - 1, gridHeight - 1);
+            }
+
         }
 
         public void PlaceTile(int x, int y, TileType type)
@@ -98,7 +131,8 @@ namespace CozyWorldGeneration
                 for (var y = 0; y < gridHeight; y++)
                 {
                     var position = GridToWorldPosition(x, y);
-                    Gizmos.DrawWireCube(position, Vector3.one * tileSize);
+                    var size = new Vector3(1f, .01f, 1f);
+                    Gizmos.DrawWireCube(position, size * tileSize);
                     
                 }
             }
@@ -112,7 +146,9 @@ namespace CozyWorldGeneration
                 for (int y = 0; y < gridHeight; y++)
                 {
                     var position = GridToWorldPosition(x, y, true);
-                    Gizmos.DrawWireCube(position, Vector3.one * tileSize);
+                    var size = new Vector3(1f, .01f, 1f);
+
+                    Gizmos.DrawWireCube(position, size * tileSize);
                 }
             }
         }
