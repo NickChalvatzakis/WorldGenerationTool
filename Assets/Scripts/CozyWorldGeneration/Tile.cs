@@ -1,4 +1,5 @@
-﻿using CozyWorldGeneration.Layers;
+﻿using CozyWorldGeneration.Data.Layers;
+using CozyWorldGeneration.Data.Tilesets;
 using UnityEngine;
 
 namespace CozyWorldGeneration
@@ -35,15 +36,14 @@ namespace CozyWorldGeneration
         }
     }
 
-    /// <summary>
-    /// Simplified visual tile - just stores position, configuration, and visual reference.
-    /// Much lighter than the previous implementation.
-    /// </summary>
     public class VisualTile
     {
         public Vector2Int GridPosition { get; private set; }
         public int ConfigurationIndex { get; set; }
         public GameObject VisualInstance { get; set; }
+
+        private VisualLayer visualLayer;
+        private Tileset selectedTileset;
 
         public VisualTile(int x, int y)
         {
@@ -52,17 +52,80 @@ namespace CozyWorldGeneration
         }
 
         /// <summary>
-        /// Updates the visual representation based on configuration index.
-        /// TODO: Implement mesh/prefab system here.
+        /// Sets the visual layer this tile should use for rendering.
         /// </summary>
-        public void UpdateVisual()
+        public void SetVisualLayer(VisualLayer layer)
         {
-            // Placeholder for visual update logic
-            // You'll load the appropriate mesh/prefab for ConfigurationIndex here
+            visualLayer = layer;
+            // Select a random tileset when layer is assigned
+            if (layer != null) selectedTileset = layer.GetRandomTileset();
+        }
 
-#if UNITY_EDITOR
-            if (ConfigurationIndex > 0) Debug.Log($"VisualTile at {GridPosition} -> Config {ConfigurationIndex}");
-#endif
+        /// <summary>
+        /// Updates the visual representation based on configuration index and tileset.
+        /// </summary>
+        public void UpdateVisual(Transform parent, float tileSize)
+        {
+            // Destroy old visual if it exists
+            if (VisualInstance != null)
+            {
+                Object.DestroyImmediate(VisualInstance);
+                VisualInstance = null;
+            }
+
+            // If no tileset or config is empty, don't render
+            if (selectedTileset == null || ConfigurationIndex == 0)
+                return;
+
+            // Get the configuration from the tileset
+            var config = selectedTileset.GetConfiguration(ConfigurationIndex);
+
+            // If no mesh, don't render
+            if (config.mesh == null)
+                return;
+
+            // Get or create layer-specific container
+            var layerContainer = GetOrCreateLayerContainer(parent);
+
+            // Create visual instance
+            VisualInstance = new GameObject($"VisualTile_{GridPosition.x}_{GridPosition.y}");
+            VisualInstance.transform.SetParent(layerContainer);
+
+            // Position and rotate
+            var worldPos = new Vector3(
+                (GridPosition.x + 0.5f) * tileSize,
+                visualLayer != null ? visualLayer.DefaultLayerHeight : 0,
+                (GridPosition.y + 0.5f) * tileSize
+            );
+            VisualInstance.transform.position = worldPos;
+            VisualInstance.transform.rotation = config.GetRotation();
+
+            // Add mesh components
+            var meshFilter = VisualInstance.AddComponent<MeshFilter>();
+            meshFilter.mesh = config.mesh;
+
+            var meshRenderer = VisualInstance.AddComponent<MeshRenderer>();
+            meshRenderer.material = config.material;
+        }
+
+        /// <summary>
+        /// Gets or creates a container for this visual layer.
+        /// </summary>
+        private Transform GetOrCreateLayerContainer(Transform parent)
+        {
+            if (visualLayer == null || parent == null)
+                return parent;
+
+            var containerName = $"Layer_{visualLayer.LayerName}";
+            var existing = parent.Find(containerName);
+
+            if (existing != null)
+                return existing;
+
+            var container = new GameObject(containerName);
+            container.transform.SetParent(parent);
+            container.transform.localPosition = Vector3.zero;
+            return container.transform;
         }
 
         /// <summary>
@@ -72,14 +135,14 @@ namespace CozyWorldGeneration
         {
             if (VisualInstance != null)
             {
-                Object.Destroy(VisualInstance);
+                Object.DestroyImmediate(VisualInstance);
                 VisualInstance = null;
             }
         }
     }
 
-    // TODO: Check if it's possible to make enum types as Scriptable Objects so we can just add them
-    // from a file faster instead of having to open the code each time
+// TODO: Check if it's possible to make enum types as Scriptable Objects so we can just add them
+// from a file faster instead of having to open the code each time
     public enum TileType
     {
         None,
@@ -90,7 +153,7 @@ namespace CozyWorldGeneration
         Sand
     }
 
-    // This is mostly for grass but we'll see
+// This is mostly for grass but we'll see
     public enum TileState
     {
         Normal,

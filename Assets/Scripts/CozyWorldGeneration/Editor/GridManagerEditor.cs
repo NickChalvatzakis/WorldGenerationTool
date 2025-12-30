@@ -1,4 +1,5 @@
-﻿using CozyWorldGeneration.Layers;
+﻿using CozyWorldGeneration.Data.Layers;
+using CozyWorldGeneration.Data.Tilesets;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -20,13 +21,8 @@ namespace CozyWorldGeneration.Editor
             gridManager = target as GridManager;
             root = new VisualElement();
 
-            // Add default inspector for grid settings
             CreateGridSettingsSection();
-
-            // Add layer collections
             CreateLayerCollectionSection();
-
-            // Add debug section
             CreateDebugSection();
 
             return root;
@@ -65,114 +61,98 @@ namespace CozyWorldGeneration.Editor
             gridSettingsFoldout.Add(tileSizeField);
 
             root.Add(gridSettingsFoldout);
+
+            // Rebuild Visuals button
+            var rebuildButton = new Button(() => { gridManager.RebuildAllVisuals(); })
+            {
+                text = "Rebuild All Visuals"
+            };
+            rebuildButton.style.marginTop = 10;
+            rebuildButton.style.height = 30;
+            root.Add(rebuildButton);
         }
 
         private void CreateLayerCollectionSection()
         {
-            // World Layers Section
-            worldLayersFoldout = CreateCollectionUI("World Layers", gridManager.WorldLayerCollection);
+            // World Layers
+            worldLayersFoldout = new Foldout { text = "World Layers", value = true };
+            worldLayersFoldout.style.marginTop = 10;
+
+            var addWorldLayerBtn = new Button(() => AddNewWorldLayer())
+            {
+                text = "+ Add World Layer"
+            };
+            worldLayersFoldout.Add(addWorldLayerBtn);
+            RefreshWorldLayers();
             root.Add(worldLayersFoldout);
 
-            // Visual Layers Section
-            visualLayersFoldout = CreateCollectionUI("Visual Layers", gridManager.VisualLayerCollection);
+            // Visual Layers
+            visualLayersFoldout = new Foldout { text = "Visual Layers", value = true };
+            visualLayersFoldout.style.marginTop = 10;
+
+            var addVisualLayerBtn = new Button(() => AddNewVisualLayer())
+            {
+                text = "+ Add Visual Layer"
+            };
+            visualLayersFoldout.Add(addVisualLayerBtn);
+            RefreshVisualLayers();
             root.Add(visualLayersFoldout);
         }
 
-        private Foldout CreateCollectionUI(string collectionName, LayerCollection collection)
+        private void RefreshWorldLayers()
         {
-            var container = new Foldout();
-            container.style.marginTop = 10;
-            container.style.marginBottom = 10;
+            while (worldLayersFoldout.childCount > 1) worldLayersFoldout.RemoveAt(1);
 
-            var foldout = new Foldout
-            {
-                text = collectionName,
-                value = collection?.foldoutState ?? true
-            };
-
-            foldout.RegisterValueChangedCallback(evt =>
-            {
-                if (collection != null)
-                    collection.foldoutState = evt.newValue;
-            });
-
-            if (collection != null)
-            {
-                // Add Layer button
-                var addLayerButton = new Button(() => AddNewLayer(collection, foldout))
-                {
-                    text = "+ Add Layer"
-                };
-                addLayerButton.style.marginTop = 5;
-                addLayerButton.style.marginBottom = 5;
-                foldout.Add(addLayerButton);
-
-                // Display existing layers
-                RefreshLayerList(collection, foldout);
-            }
-
-            container.Add(foldout);
-            return container;
-        }
-
-        private void RefreshLayerList(LayerCollection collection, Foldout parentFoldout)
-        {
-            // Clear existing layer UI (except the add button)
-            while (parentFoldout.childCount > 1) parentFoldout.RemoveAt(1);
-
-            if (collection.Layers == null)
+            if (gridManager.WorldLayerCollection?.Layers == null)
                 return;
 
-            foreach (var layer in collection.Layers)
+            foreach (var layer in gridManager.WorldLayerCollection.Layers)
             {
-                if (layer == null)
-                    continue;
-
-                var layerElement = CreateLayerUI(layer, collection, parentFoldout);
-                parentFoldout.Add(layerElement);
+                var worldLayer = layer as WorldLayer;
+                if (worldLayer != null) worldLayersFoldout.Add(CreateWorldLayerUI(worldLayer));
             }
         }
 
-        private VisualElement CreateLayerUI(WorldLayer layer, LayerCollection collection, Foldout parentFoldout)
+        private void RefreshVisualLayers()
         {
-            var layerContainer = new VisualElement();
-            layerContainer.style.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 0.3f);
-            layerContainer.style.marginTop = 5;
-            layerContainer.style.marginBottom = 5;
-            layerContainer.style.paddingLeft = 5;
-            layerContainer.style.paddingRight = 5;
-            layerContainer.style.paddingTop = 5;
-            layerContainer.style.paddingBottom = 5;
-            layerContainer.style.borderBottomLeftRadius = 4;
-            layerContainer.style.borderBottomRightRadius = 4;
-            layerContainer.style.borderTopLeftRadius = 4;
-            layerContainer.style.borderTopRightRadius = 4;
+            while (visualLayersFoldout.childCount > 1) visualLayersFoldout.RemoveAt(1);
 
-            var headerRow = new VisualElement();
-            headerRow.style.flexDirection = FlexDirection.Row;
-            headerRow.style.justifyContent = Justify.SpaceBetween;
+            if (gridManager.VisualLayerCollection?.Layers == null)
+                return;
 
-            var foldout = new Foldout
+            foreach (var layer in gridManager.VisualLayerCollection.Layers)
             {
-                text = layer.LayerName,
-                value = layer.foldoutState
-            };
+                var visualLayer = layer as VisualLayer;
+                if (visualLayer != null) visualLayersFoldout.Add(CreateVisualLayerUI(visualLayer));
+            }
+        }
+
+        private VisualElement CreateWorldLayerUI(WorldLayer layer)
+        {
+            var container = new VisualElement();
+            container.style.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 0.3f);
+            container.style.marginTop = 5;
+            container.style.borderBottomLeftRadius = 4;
+            container.style.borderBottomRightRadius = 4;
+            container.style.borderTopLeftRadius = 4;
+            container.style.borderTopRightRadius = 4;
+
+            var header = new VisualElement();
+            header.style.flexDirection = FlexDirection.Row;
+
+            var foldout = new Foldout { text = layer.LayerName, value = layer.foldoutState };
             foldout.style.flexGrow = 1;
+            foldout.RegisterValueChangedCallback(evt => layer.foldoutState = evt.newValue);
 
-            foldout.RegisterValueChangedCallback(evt => { layer.foldoutState = evt.newValue; });
+            var removeBtn = new Button(() => RemoveWorldLayer(layer)) { text = "X" };
+            removeBtn.style.width = 30;
 
-            var removeButton = new Button(() => RemoveLayer(layer, collection, parentFoldout))
-            {
-                text = "X"
-            };
-            removeButton.style.width = 30;
+            header.Add(foldout);
+            header.Add(removeBtn);
+            container.Add(header);
 
-            headerRow.Add(foldout);
-            headerRow.Add(removeButton);
-            layerContainer.Add(headerRow);
-
-            // Layer properties
-            var nameField = new TextField("Layer Name") { value = layer.LayerName };
+            // Properties
+            var nameField = new TextField("Name") { value = layer.LayerName };
             nameField.RegisterValueChangedCallback(evt =>
             {
                 layer.LayerName = evt.newValue;
@@ -201,129 +181,234 @@ namespace CozyWorldGeneration.Editor
                 EditorUtility.SetDirty(layer);
             });
 
-            var colorField = new ColorField("Layer Color") { value = layer.LayerColor };
+            var colorField = new ColorField("Color") { value = layer.LayerColor };
             colorField.RegisterValueChangedCallback(evt =>
             {
                 layer.LayerColor = evt.newValue;
                 EditorUtility.SetDirty(layer);
             });
 
-            var heightField = new IntegerField("Default Height") { value = layer.DefaultLayerHeight };
-            heightField.RegisterValueChangedCallback(evt =>
-            {
-                layer.DefaultLayerHeight = evt.newValue;
-                EditorUtility.SetDirty(layer);
-            });
-
-            // Preview texture display
-            var previewLabel = new Label("Preview Texture:");
-            var previewImage = new Image();
-            if (layer.PreviewTexture != null)
-            {
-                previewImage.image = layer.PreviewTexture;
-                previewImage.style.width = 128;
-                previewImage.style.height = 128;
-            }
-
-            var clearButton = new Button(() => ClearLayer(layer))
-            {
-                text = "Clear Layer"
-            };
+            var clearBtn = new Button(() => ClearLayer(layer)) { text = "Clear Layer" };
 
             foldout.Add(nameField);
             foldout.Add(enabledToggle);
             foldout.Add(tileTypeField);
             foldout.Add(lockToggle);
             foldout.Add(colorField);
-            foldout.Add(heightField);
-            foldout.Add(previewLabel);
-            foldout.Add(previewImage);
-            foldout.Add(clearButton);
+            foldout.Add(clearBtn);
 
-            return layerContainer;
+            return container;
         }
 
-        private void AddNewLayer(LayerCollection collection, Foldout parentFoldout)
+        private VisualElement CreateVisualLayerUI(VisualLayer layer)
         {
-            // Create new WorldLayer asset
-            var layer = CreateInstance<WorldLayer>();
-            layer.LayerName = $"Layer {collection.Layers.Count + 1}";
+            var container = new VisualElement();
+            container.style.backgroundColor = new Color(0.2f, 0.2f, 0.3f, 0.3f);
+            container.style.marginTop = 5;
+            container.style.borderBottomLeftRadius = 4;
+            container.style.borderBottomRightRadius = 4;
+            container.style.borderTopLeftRadius = 4;
+            container.style.borderTopRightRadius = 4;
 
-            // Save as asset
-            var path = EditorUtility.SaveFilePanelInProject(
-                "Save World Layer",
-                layer.LayerName,
-                "asset",
-                "Save the WorldLayer asset"
-            );
+            var header = new VisualElement();
+            header.style.flexDirection = FlexDirection.Row;
 
-            if (!string.IsNullOrEmpty(path))
+            var foldout = new Foldout { text = layer.LayerName, value = layer.foldoutState };
+            foldout.style.flexGrow = 1;
+            foldout.RegisterValueChangedCallback(evt => layer.foldoutState = evt.newValue);
+
+            var removeBtn = new Button(() => RemoveVisualLayer(layer)) { text = "X" };
+            removeBtn.style.width = 30;
+
+            header.Add(foldout);
+            header.Add(removeBtn);
+            container.Add(header);
+
+            // Properties
+            var nameField = new TextField("Name") { value = layer.LayerName };
+            nameField.RegisterValueChangedCallback(evt =>
             {
-                AssetDatabase.CreateAsset(layer, path);
-                AssetDatabase.SaveAssets();
+                layer.LayerName = evt.newValue;
+                foldout.text = evt.newValue;
+                EditorUtility.SetDirty(layer);
+            });
 
-                collection.AddLayer(layer);
-                layer.InitializePreviewTexture(gridManager.Width, gridManager.Height);
+            var enabledToggle = new Toggle("Enabled") { value = layer.IsEnabled };
+            enabledToggle.RegisterValueChangedCallback(evt =>
+            {
+                layer.IsEnabled = evt.newValue;
+                EditorUtility.SetDirty(layer);
+            });
 
-                // Mark GridManager as dirty and save
-                EditorUtility.SetDirty(gridManager);
-                serializedObject.Update();
+            var worldLayerField = new ObjectField("Assigned World Layer")
+            {
+                objectType = typeof(WorldLayer),
+                value = layer.AssignedWorldLayer
+            };
+            worldLayerField.RegisterValueChangedCallback(evt =>
+            {
+                layer.AssignedWorldLayer = evt.newValue as WorldLayer;
+                EditorUtility.SetDirty(layer);
+            });
+
+            var heightField = new IntegerField("Height") { value = layer.DefaultLayerHeight };
+            heightField.RegisterValueChangedCallback(evt =>
+            {
+                layer.DefaultLayerHeight = evt.newValue;
+                EditorUtility.SetDirty(layer);
+            });
+
+            // Tilesets
+            var tilesetsLabel = new Label("Tilesets:");
+            tilesetsLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            tilesetsLabel.style.marginTop = 5;
+
+            var tilesetsContainer = new VisualElement();
+            RefreshTilesetsList(layer, tilesetsContainer);
+
+            var addTilesetBtn = new Button(() =>
+            {
+                layer.AddTileset(null, 1f);
+                EditorUtility.SetDirty(layer);
                 serializedObject.ApplyModifiedProperties();
-                AssetDatabase.SaveAssets();
+                RefreshTilesetsList(layer, tilesetsContainer);
+            })
+            {
+                text = "+ Add Tileset"
+            };
 
-                RefreshLayerList(collection, parentFoldout);
+            foldout.Add(nameField);
+            foldout.Add(enabledToggle);
+            foldout.Add(worldLayerField);
+            foldout.Add(heightField);
+            foldout.Add(tilesetsLabel);
+            foldout.Add(tilesetsContainer);
+            foldout.Add(addTilesetBtn);
+
+            return container;
+        }
+
+        private void RefreshTilesetsList(VisualLayer layer, VisualElement container)
+        {
+            container.Clear();
+
+            for (var i = 0; i < layer.Tilesets.Count; i++)
+            {
+                var index = i;
+                var weighted = layer.Tilesets[i];
+
+                var row = new VisualElement();
+                row.style.flexDirection = FlexDirection.Row;
+                row.style.marginBottom = 3;
+
+                var tilesetField = new ObjectField { objectType = typeof(Tileset), value = weighted.tileset };
+                tilesetField.style.flexGrow = 1;
+                tilesetField.RegisterValueChangedCallback(evt =>
+                {
+                    layer.Tilesets[index].tileset = evt.newValue as Tileset;
+                    EditorUtility.SetDirty(layer);
+                });
+
+                var weightField = new FloatField { value = weighted.weight };
+                weightField.style.width = 60;
+                weightField.RegisterValueChangedCallback(evt =>
+                {
+                    layer.Tilesets[index].weight = Mathf.Max(0.1f, evt.newValue);
+                    EditorUtility.SetDirty(layer);
+                });
+
+                var removeBtn = new Button(() =>
+                {
+                    layer.Tilesets.RemoveAt(index);
+                    EditorUtility.SetDirty(layer);
+                    RefreshTilesetsList(layer, container);
+                })
+                {
+                    text = "X"
+                };
+                removeBtn.style.width = 25;
+
+                row.Add(tilesetField);
+                row.Add(weightField);
+                row.Add(removeBtn);
+
+                container.Add(row);
             }
         }
 
-        private void RemoveLayer(WorldLayer layer, LayerCollection collection, Foldout parentFoldout)
+        private void AddNewWorldLayer()
         {
-            if (EditorUtility.DisplayDialog("Remove Layer",
-                    $"Are you sure you want to remove '{layer.LayerName}'?",
-                    "Yes", "No"))
+            var layer = CreateInstance<WorldLayer>();
+            layer.LayerName = $"WorldLayer {gridManager.WorldLayerCollection.Layers.Count + 1}";
+
+            var path = EditorUtility.SaveFilePanelInProject("Save World Layer", layer.LayerName, "asset", "");
+            if (string.IsNullOrEmpty(path)) return;
+
+            AssetDatabase.CreateAsset(layer, path);
+            gridManager.WorldLayerCollection.AddLayer(layer);
+            layer.InitializePreviewTexture(gridManager.Width, gridManager.Height);
+
+            EditorUtility.SetDirty(gridManager);
+            serializedObject.ApplyModifiedProperties();
+            AssetDatabase.SaveAssets();
+            RefreshWorldLayers();
+        }
+
+        private void AddNewVisualLayer()
+        {
+            var layer = CreateInstance<VisualLayer>();
+            layer.LayerName = $"VisualLayer {gridManager.VisualLayerCollection.Layers.Count + 1}";
+
+            var path = EditorUtility.SaveFilePanelInProject("Save Visual Layer", layer.LayerName, "asset", "");
+            if (string.IsNullOrEmpty(path)) return;
+
+            AssetDatabase.CreateAsset(layer, path);
+            gridManager.VisualLayerCollection.AddLayer(layer);
+
+            EditorUtility.SetDirty(gridManager);
+            serializedObject.ApplyModifiedProperties();
+            AssetDatabase.SaveAssets();
+            RefreshVisualLayers();
+        }
+
+        private void RemoveWorldLayer(WorldLayer layer)
+        {
+            if (EditorUtility.DisplayDialog("Remove Layer", $"Remove '{layer.LayerName}'?", "Yes", "No"))
             {
-                collection.RemoveLayer(layer);
-
-                // Mark GridManager as dirty and save
+                gridManager.WorldLayerCollection.RemoveLayer(layer);
                 EditorUtility.SetDirty(gridManager);
-                serializedObject.Update();
                 serializedObject.ApplyModifiedProperties();
-                AssetDatabase.SaveAssets();
+                RefreshWorldLayers();
+            }
+        }
 
-                RefreshLayerList(collection, parentFoldout);
+        private void RemoveVisualLayer(VisualLayer layer)
+        {
+            if (EditorUtility.DisplayDialog("Remove Layer", $"Remove '{layer.LayerName}'?", "Yes", "No"))
+            {
+                gridManager.VisualLayerCollection.RemoveLayer(layer);
+                EditorUtility.SetDirty(gridManager);
+                serializedObject.ApplyModifiedProperties();
+                RefreshVisualLayers();
             }
         }
 
         private void ClearLayer(WorldLayer layer)
         {
-            if (EditorUtility.DisplayDialog("Clear Layer",
-                    $"Are you sure you want to clear '{layer.LayerName}'?",
-                    "Yes", "No"))
+            if (EditorUtility.DisplayDialog("Clear Layer", $"Clear '{layer.LayerName}'?", "Yes", "No"))
             {
-                Debug.Log($"[Editor] Starting clear for layer: {layer.LayerName}");
-
                 layer.ClearPreviewTexture();
                 EditorUtility.SetDirty(layer);
 
-                // Directly tell the GridManager to clear tiles
-                if (gridManager != null)
-                {
-                    Debug.Log($"[Editor] GridManager found, clearing tiles from grid");
-                    ClearTilesFromLayerInManager(layer);
-                }
-                else
-                {
-                    Debug.LogWarning("[Editor] GridManager is null!");
-                }
+                if (gridManager != null) ClearTilesFromLayerInManager(layer);
 
-                // Force scene view to repaint
                 SceneView.RepaintAll();
             }
         }
 
         private void ClearTilesFromLayerInManager(WorldLayer layer)
         {
-            if (gridManager.WorldGrid == null)
-                return;
+            if (gridManager.WorldGrid == null) return;
 
             var tilesToRemove = new System.Collections.Generic.List<Vector2Int>();
 
@@ -372,10 +457,6 @@ namespace CozyWorldGeneration.Editor
                 serializedObject.ApplyModifiedProperties();
             });
 
-            debugFoldout.Add(drawGizmosToggle);
-            debugFoldout.Add(drawWorldToggle);
-            debugFoldout.Add(drawVisualToggle);
-
             var worldGridColorPicker = new ColorField("World Grid Color")
             {
                 value = serializedObject.FindProperty("worldGridColor").colorValue
@@ -396,6 +477,9 @@ namespace CozyWorldGeneration.Editor
                 serializedObject.ApplyModifiedProperties();
             });
 
+            debugFoldout.Add(drawGizmosToggle);
+            debugFoldout.Add(drawWorldToggle);
+            debugFoldout.Add(drawVisualToggle);
             debugFoldout.Add(worldGridColorPicker);
             debugFoldout.Add(visualGridColorPicker);
 

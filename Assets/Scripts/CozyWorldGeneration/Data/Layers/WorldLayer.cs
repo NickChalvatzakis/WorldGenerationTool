@@ -1,8 +1,8 @@
-﻿using UnityEngine;
-using System;
+﻿using System;
 using CozyWorldGeneration.Events;
+using UnityEngine;
 
-namespace CozyWorldGeneration
+namespace CozyWorldGeneration.Data.Layers
 {
     /// <summary>
     /// ScriptableObject that represents a single layer in the grid system.

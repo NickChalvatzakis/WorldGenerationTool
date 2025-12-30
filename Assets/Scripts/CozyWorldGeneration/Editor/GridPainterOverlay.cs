@@ -3,6 +3,7 @@ using UnityEditor.Overlays;
 using UnityEngine;
 using UnityEngine.UIElements;
 using System.Collections.Generic;
+using CozyWorldGeneration.Data.Layers;
 
 namespace CozyWorldGeneration.Editor
 {
@@ -88,7 +89,7 @@ namespace CozyWorldGeneration.Editor
             if (Selection.activeGameObject != null)
                 activeGridManager = Selection.activeGameObject.GetComponent<GridManager>();
 
-            if (activeGridManager == null) activeGridManager = GameObject.FindObjectOfType<GridManager>();
+            if (activeGridManager == null) activeGridManager = Object.FindAnyObjectByType<GridManager>();
 
             RefreshUI();
         }
@@ -131,26 +132,6 @@ namespace CozyWorldGeneration.Editor
                 layerScrollView.Add(worldLayersLabel);
 
                 foreach (var layer in activeGridManager.WorldLayerCollection.Layers)
-                    if (layer != null)
-                    {
-                        var layerElement = CreateLayerButton(layer);
-                        layerScrollView.Add(layerElement);
-                    }
-            }
-
-            // Visual Layers Section
-            if (activeGridManager.VisualLayerCollection != null &&
-                activeGridManager.VisualLayerCollection.Layers.Count > 0)
-            {
-                var visualLayersLabel = new Label("Visual Layers");
-                visualLayersLabel.style.fontSize = 12;
-                visualLayersLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-                visualLayersLabel.style.marginTop = 10;
-                visualLayersLabel.style.marginBottom = 5;
-                visualLayersLabel.style.color = Color.white;
-                layerScrollView.Add(visualLayersLabel);
-
-                foreach (var layer in activeGridManager.VisualLayerCollection.Layers)
                     if (layer != null)
                     {
                         var layerElement = CreateLayerButton(layer);

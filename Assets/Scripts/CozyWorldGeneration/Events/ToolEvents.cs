@@ -1,5 +1,5 @@
 ﻿using System;
-using CozyWorldGeneration.Layers;
+using CozyWorldGeneration.Data.Layers;
 using UnityEngine;
 
 namespace CozyWorldGeneration.Events

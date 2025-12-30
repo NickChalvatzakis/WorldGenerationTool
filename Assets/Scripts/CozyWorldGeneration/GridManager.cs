@@ -1,5 +1,5 @@
-﻿using CozyWorldGeneration.Events;
-using CozyWorldGeneration.Layers;
+﻿using CozyWorldGeneration.Data.Layers;
+using CozyWorldGeneration.Events;
 using UnityEngine;
 
 namespace CozyWorldGeneration
@@ -18,9 +18,9 @@ namespace CozyWorldGeneration
         [SerializeField] private float tileSize = 1f;
 
         [Header("Layer Collections")] [SerializeField]
-        private LayerCollection worldLayerCollection;
+        private WorldLayerCollection worldLayerCollection;
 
-        [SerializeField] private LayerCollection visualLayerCollection;
+        [SerializeField] private VisualLayerCollection visualLayerCollection;
 
         [Header("Debug")] [SerializeField] private bool drawGizmos = true;
         [SerializeField] private bool drawWorldGrid = true;
@@ -35,8 +35,12 @@ namespace CozyWorldGeneration
         public int Height => gridHeight;
         public float TileSize => tileSize;
 
-        public LayerCollection WorldLayerCollection => worldLayerCollection;
-        public LayerCollection VisualLayerCollection => visualLayerCollection;
+        public WorldLayerCollection WorldLayerCollection => worldLayerCollection;
+        public VisualLayerCollection VisualLayerCollection => visualLayerCollection;
+
+        private Transform visualTilesContainer;
+
+        public Transform VisualTilesContainer => visualTilesContainer;
 
         private void Awake()
         {
@@ -72,12 +76,29 @@ namespace CozyWorldGeneration
 
         public void InitializeGrids()
         {
-            if (worldLayerCollection == null) worldLayerCollection = new LayerCollection("World Layers");
-            if (visualLayerCollection == null) visualLayerCollection = new LayerCollection("Visual Layers");
+            if (worldLayerCollection == null) worldLayerCollection = new WorldLayerCollection("World Layers");
+            if (visualLayerCollection == null) visualLayerCollection = new VisualLayerCollection("Visual Layers");
+
+            // Create main container for visual tiles if it doesn't exist
+            if (visualTilesContainer == null)
+            {
+                var container = new GameObject("Visual Tiles");
+                container.transform.SetParent(transform);
+                visualTilesContainer = container.transform;
+            }
 
             WorldGrid = new WorldGrid(gridWidth, gridHeight);
-            VisualGrid = new VisualGrid(gridWidth - 1, gridHeight - 1, WorldGrid);
+            VisualGrid = new VisualGrid(gridWidth - 1, gridHeight - 1, WorldGrid, tileSize);
             WorldGrid.LinkVisualGrid(VisualGrid);
+
+            // Set the main tiles container
+            VisualGrid.TilesContainer = visualTilesContainer;
+
+            // Set the delegate to find VisualLayers
+            VisualGrid.GetVisualLayerForWorldLayer = (worldLayer) =>
+            {
+                return visualLayerCollection?.GetVisualLayerForWorldLayer(worldLayer);
+            };
 
             InitializeLayerTextures();
             ToolEvents.RaiseGridInitialized(gridWidth, gridHeight);
@@ -89,8 +110,6 @@ namespace CozyWorldGeneration
         private void InitializeLayerTextures()
         {
             foreach (var layer in worldLayerCollection.Layers) layer?.InitializePreviewTexture(gridWidth, gridHeight);
-            foreach (var layer in visualLayerCollection.Layers)
-                layer?.InitializePreviewTexture(gridWidth - 1, gridHeight - 1);
         }
 
         private void SubscribeToEvents()
@@ -199,6 +218,23 @@ namespace CozyWorldGeneration
             var x = Mathf.FloorToInt(worldPos.x / tileSize);
             var y = Mathf.FloorToInt(worldPos.z / tileSize);
             return new Vector2Int(x, y);
+        }
+
+        /// <summary>
+        /// Rebuilds all visual tiles from the current WorldGrid state.
+        /// </summary>
+        [ContextMenu("Rebuild All Visuals")]
+        public void RebuildAllVisuals()
+        {
+            if (VisualGrid == null)
+            {
+                Debug.LogWarning("VisualGrid is null, cannot rebuild visuals");
+                return;
+            }
+
+            Debug.Log("Rebuilding all visual tiles...");
+            VisualGrid.UpdateAllVisuals();
+            Debug.Log("Visual rebuild complete");
         }
 
         #region Gizmos

@@ -1,4 +1,4 @@
-﻿using CozyWorldGeneration.Layers;
+﻿using CozyWorldGeneration.Data.Layers;
 using UnityEditor;
 using UnityEditor.EditorTools;
 using UnityEngine;
