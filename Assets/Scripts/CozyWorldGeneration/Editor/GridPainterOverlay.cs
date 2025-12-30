@@ -2,7 +2,7 @@
 using UnityEditor.Overlays;
 using UnityEngine;
 using UnityEngine.UIElements;
-using CozyWorldGeneration.Layers;
+using System.Collections.Generic;
 
 namespace CozyWorldGeneration.Editor
 {
@@ -86,14 +86,9 @@ namespace CozyWorldGeneration.Editor
         {
             // Find GridManager in selection or scene
             if (Selection.activeGameObject != null)
-            {
                 activeGridManager = Selection.activeGameObject.GetComponent<GridManager>();
-            }
 
-            if (activeGridManager == null)
-            {
-                activeGridManager = GameObject.FindAnyObjectByType<GridManager>();
-            }
+            if (activeGridManager == null) activeGridManager = GameObject.FindObjectOfType<GridManager>();
 
             RefreshUI();
         }
@@ -124,7 +119,7 @@ namespace CozyWorldGeneration.Editor
             layerScrollView.Add(gridInfoLabel);
 
             // World Layers Section
-            if (activeGridManager.WorldLayerCollection != null && 
+            if (activeGridManager.WorldLayerCollection != null &&
                 activeGridManager.WorldLayerCollection.Layers.Count > 0)
             {
                 var worldLayersLabel = new Label("World Layers");
@@ -136,17 +131,15 @@ namespace CozyWorldGeneration.Editor
                 layerScrollView.Add(worldLayersLabel);
 
                 foreach (var layer in activeGridManager.WorldLayerCollection.Layers)
-                {
                     if (layer != null)
                     {
                         var layerElement = CreateLayerButton(layer);
                         layerScrollView.Add(layerElement);
                     }
-                }
             }
 
             // Visual Layers Section
-            if (activeGridManager.VisualLayerCollection != null && 
+            if (activeGridManager.VisualLayerCollection != null &&
                 activeGridManager.VisualLayerCollection.Layers.Count > 0)
             {
                 var visualLayersLabel = new Label("Visual Layers");
@@ -158,13 +151,11 @@ namespace CozyWorldGeneration.Editor
                 layerScrollView.Add(visualLayersLabel);
 
                 foreach (var layer in activeGridManager.VisualLayerCollection.Layers)
-                {
                     if (layer != null)
                     {
                         var layerElement = CreateLayerButton(layer);
                         layerScrollView.Add(layerElement);
                     }
-                }
             }
 
             // Selected layer info
@@ -196,17 +187,10 @@ namespace CozyWorldGeneration.Editor
 
             // Visual styling based on layer state
             if (layer == selectedLayer)
-            {
                 layerButton.style.backgroundColor = new Color(0.3f, 0.5f, 0.3f);
-            }
             else if (!layer.IsEnabled)
-            {
                 layerButton.style.backgroundColor = new Color(0.3f, 0.2f, 0.2f);
-            }
-            else if (layer.LockFromPaint)
-            {
-                layerButton.style.backgroundColor = new Color(0.4f, 0.3f, 0.2f);
-            }
+            else if (layer.LockFromPaint) layerButton.style.backgroundColor = new Color(0.4f, 0.3f, 0.2f);
 
             // Button content
             var buttonContent = new VisualElement();
@@ -233,7 +217,7 @@ namespace CozyWorldGeneration.Editor
             var statusText = "";
             if (!layer.IsEnabled) statusText += " [OFF]";
             if (layer.LockFromPaint) statusText += " 🔒";
-            
+
             if (!string.IsNullOrEmpty(statusText))
             {
                 var statusLabel = new Label(statusText);
@@ -267,21 +251,21 @@ namespace CozyWorldGeneration.Editor
         {
             if (!layer.IsEnabled)
             {
-                EditorUtility.DisplayDialog("Layer Disabled", 
+                EditorUtility.DisplayDialog("Layer Disabled",
                     $"Layer '{layer.LayerName}' is disabled. Enable it first.", "OK");
                 return;
             }
 
             if (layer.LockFromPaint)
             {
-                EditorUtility.DisplayDialog("Layer Locked", 
+                EditorUtility.DisplayDialog("Layer Locked",
                     $"Layer '{layer.LayerName}' is locked from painting.", "OK");
                 return;
             }
 
             selectedLayer = layer;
             RefreshUI();
-            
+
             Debug.Log($"Selected layer for painting: {layer.LayerName}");
         }
 
@@ -290,14 +274,42 @@ namespace CozyWorldGeneration.Editor
         /// </summary>
         private void ClearLayerData(WorldLayer layer)
         {
-            if (EditorUtility.DisplayDialog("Clear Layer", 
-                $"Clear all painted data from '{layer.LayerName}'?", "Yes", "No"))
+            if (EditorUtility.DisplayDialog("Clear Layer",
+                    $"Clear all painted data from '{layer.LayerName}'?", "Yes", "No"))
             {
+                Debug.Log($"[Overlay] Starting clear for layer: {layer.LayerName}");
+
                 layer.ClearPreviewTexture();
                 EditorUtility.SetDirty(layer);
+
+                // Make sure we have the active grid manager
+                if (activeGridManager == null) RefreshGridManager();
+
+                // Directly clear tiles from the grid
+                if (activeGridManager != null && activeGridManager.WorldGrid != null)
+                {
+                    Debug.Log($"[Overlay] GridManager found, clearing tiles from grid");
+
+                    var tilesToRemove = new List<Vector2Int>();
+
+                    foreach (var position in activeGridManager.WorldGrid.GetAllPositions())
+                    {
+                        var tile = activeGridManager.WorldGrid.GetTile(position);
+                        if (tile != null && tile.SourceLayer == layer) tilesToRemove.Add(position);
+                    }
+
+                    foreach (var position in tilesToRemove)
+                        activeGridManager.WorldGrid.SetTile(position.x, position.y, null);
+
+                    Debug.Log(
+                        $"[Overlay] Cleared layer: {layer.LayerName} - Removed {tilesToRemove.Count} tiles from grid");
+                }
+                else
+                {
+                    Debug.LogWarning($"[Overlay] GridManager is null or WorldGrid is null!");
+                }
+
                 SceneView.RepaintAll();
-                
-                Debug.Log($"Cleared layer: {layer.LayerName}");
             }
         }
 

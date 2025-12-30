@@ -265,7 +265,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 408128536}
-  - component: {fileID: 408128535}
   m_Layer: 0
   m_Name: GridManager
   m_TagString: Untagged
@@ -273,38 +272,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &408128535
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 408128534}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c808a5f51a35410f8f610c0e1fbe8fb0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CozyWorldGeneration.GridManager
-  gridWidth: 10
-  gridHeight: 10
-  tileSize: 1
-  worldLayerCollection:
-    guid: 
-    collectionName: 
-    assignedWorldLayers:
-    - fe7da672-ac36-4118-aab0-6b7056bce1a9
-    layers:
-    - {fileID: 11400000, guid: 9a835fdaa6fe9944da43343300ca7085, type: 2}
-    foldoutState: 1
-  visualLayerCollection:
-    guid: 
-    collectionName: 
-    assignedWorldLayers: []
-    layers: []
-    foldoutState: 0
-  drawGizmos: 1
-  drawWorldGrid: 1
-  drawVisualGrid: 1
 --- !u!4 &408128536
 Transform:
   m_ObjectHideFlags: 0

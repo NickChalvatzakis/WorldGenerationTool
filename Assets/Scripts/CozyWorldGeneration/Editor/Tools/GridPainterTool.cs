@@ -3,8 +3,12 @@ using UnityEditor;
 using UnityEditor.EditorTools;
 using UnityEngine;
 
-namespace CozyWorldGeneration.Editor.Tools
+namespace CozyWorldGeneration.Editor
 {
+    /// <summary>
+    /// Scene View tool for painting on the grid.
+    /// Handles mouse input and grid interaction.
+    /// </summary>
     [EditorTool("Grid Painter Tool")]
     public class GridPainterTool : EditorTool
     {
@@ -12,7 +16,7 @@ namespace CozyWorldGeneration.Editor.Tools
         private WorldLayer selectedLayer;
         private bool isPainting = false;
         private bool isErasing = false;
- 
+
         private GUIContent cachedToolbarIcon;
 
         public override GUIContent toolbarIcon
@@ -20,12 +24,10 @@ namespace CozyWorldGeneration.Editor.Tools
             get
             {
                 if (cachedToolbarIcon == null)
-                {
                     cachedToolbarIcon = new GUIContent(
                         EditorGUIUtility.IconContent("Grid.PaintTool").image,
                         "Grid Painter Tool (Shift+G)"
                     );
-                }
                 return cachedToolbarIcon;
             }
         }
@@ -36,9 +38,9 @@ namespace CozyWorldGeneration.Editor.Tools
                 return;
 
             // Get the active grid manager and selected layer from overlay
-            if (sceneView.TryGetOverlay("Grid Painter", out UnityEditor.Overlays.Overlay overlay))
+            if (sceneView.TryGetOverlay("Grid Painter", out var overlay))
             {
-                GridPainterOverlay painterOverlay = overlay as GridPainterOverlay;
+                var painterOverlay = overlay as GridPainterOverlay;
                 if (painterOverlay != null)
                 {
                     gridManager = painterOverlay.GetActiveGridManager();
@@ -46,10 +48,7 @@ namespace CozyWorldGeneration.Editor.Tools
                 }
             }
 
-            if (gridManager == null)
-            {
-                return;
-            }
+            if (gridManager == null) return;
 
             HandleInput();
             DrawGridPreview();
@@ -57,8 +56,11 @@ namespace CozyWorldGeneration.Editor.Tools
 
         private void HandleInput()
         {
-            Event e = Event.current;
-            int controlID = GUIUtility.GetControlID(FocusType.Passive);
+            var e = Event.current;
+            var controlID = GUIUtility.GetControlID(FocusType.Passive);
+
+            // Allow camera controls (Alt + mouse) to pass through
+            if (e.alt) return;
 
             switch (e.type)
             {
@@ -77,6 +79,7 @@ namespace CozyWorldGeneration.Editor.Tools
                         e.Use();
                         GUIUtility.hotControl = controlID;
                     }
+
                     break;
 
                 case EventType.MouseDrag:
@@ -90,6 +93,7 @@ namespace CozyWorldGeneration.Editor.Tools
                         EraseAtMousePosition(e);
                         e.Use();
                     }
+
                     break;
 
                 case EventType.MouseUp:
@@ -103,6 +107,7 @@ namespace CozyWorldGeneration.Editor.Tools
                         isErasing = false;
                         GUIUtility.hotControl = 0;
                     }
+
                     break;
 
                 case EventType.Layout:
@@ -116,11 +121,8 @@ namespace CozyWorldGeneration.Editor.Tools
             if (selectedLayer == null || !selectedLayer.IsEnabled || selectedLayer.LockFromPaint)
                 return;
 
-            Vector2Int? gridPos = GetGridPositionFromMouse(e.mousePosition);
-            if (gridPos.HasValue)
-            {
-                PaintTile(gridPos.Value.x, gridPos.Value.y);
-            }
+            var gridPos = GetGridPositionFromMouse(e.mousePosition);
+            if (gridPos.HasValue) PaintTile(gridPos.Value.x, gridPos.Value.y);
         }
 
         private void EraseAtMousePosition(Event e)
@@ -128,27 +130,21 @@ namespace CozyWorldGeneration.Editor.Tools
             if (selectedLayer == null)
                 return;
 
-            Vector2Int? gridPos = GetGridPositionFromMouse(e.mousePosition);
-            if (gridPos.HasValue)
-            {
-                EraseTile(gridPos.Value.x, gridPos.Value.y);
-            }
+            var gridPos = GetGridPositionFromMouse(e.mousePosition);
+            if (gridPos.HasValue) EraseTile(gridPos.Value.x, gridPos.Value.y);
         }
 
         private Vector2Int? GetGridPositionFromMouse(Vector2 mousePosition)
         {
-            Ray ray = HandleUtility.GUIPointToWorldRay(mousePosition);
-            Plane gridPlane = new Plane(Vector3.up, Vector3.zero);
+            var ray = HandleUtility.GUIPointToWorldRay(mousePosition);
+            var gridPlane = new Plane(Vector3.up, Vector3.zero);
 
-            if (gridPlane.Raycast(ray, out float enter))
+            if (gridPlane.Raycast(ray, out var enter))
             {
-                Vector3 worldPos = ray.GetPoint(enter);
-                Vector2Int gridPos = gridManager.WorldToGridPosition(worldPos);
+                var worldPos = ray.GetPoint(enter);
+                var gridPos = gridManager.WorldToGridPosition(worldPos);
 
-                if (gridManager.WorldGrid.IsValidPosition(gridPos))
-                {
-                    return gridPos;
-                }
+                if (gridManager.WorldGrid.IsValidPosition(gridPos)) return gridPos;
             }
 
             return null;
@@ -161,13 +157,10 @@ namespace CozyWorldGeneration.Editor.Tools
 
             // Create or update the world tile
             gridManager.WorldGrid.PlaceTile(x, y, selectedLayer.TileType);
-            
+
             // Set the source layer for tracking
-            WorldTile tile = gridManager.WorldGrid.GetTile(x, y);
-            if (tile != null)
-            {
-                tile.SourceLayer = selectedLayer;
-            }
+            var tile = gridManager.WorldGrid.GetTile(x, y);
+            if (tile != null) tile.SourceLayer = selectedLayer;
 
             EditorUtility.SetDirty(selectedLayer);
             SceneView.RepaintAll();
@@ -176,8 +169,8 @@ namespace CozyWorldGeneration.Editor.Tools
         private void EraseTile(int x, int y)
         {
             // Get the tile to check if it belongs to the selected layer
-            WorldTile tile = gridManager.WorldGrid.GetTile(x, y);
-            
+            var tile = gridManager.WorldGrid.GetTile(x, y);
+
             if (tile != null && (selectedLayer == null || tile.SourceLayer == selectedLayer))
             {
                 // Erase from preview texture
@@ -201,68 +194,62 @@ namespace CozyWorldGeneration.Editor.Tools
             Handles.color = Color.green;
 
             // Draw grid cells and tile type labels
-            for (int x = 0; x < gridManager.Width; x++)
+            for (var x = 0; x < gridManager.Width; x++)
+            for (var y = 0; y < gridManager.Height; y++)
             {
-                for (int y = 0; y < gridManager.Height; y++)
+                var worldPos = gridManager.GridToWorldPosition(x, y);
+                var cellSize = Vector3.one * gridManager.TileSize;
+
+
+                // Draw tile if it exists
+                var tile = gridManager.WorldGrid.GetTile(x, y);
+                if (tile != null)
                 {
-                    Vector3 worldPos = gridManager.GridToWorldPosition(x, y);
-                    Vector3 cellSize = Vector3.one * gridManager.TileSize;
+                    // Color based on source layer
+                    var tileColor = tile.SourceLayer != null ? tile.SourceLayer.LayerColor : Color.white;
+                    tileColor.a = 0.5f;
+                    Handles.color = tileColor;
+                    Handles.DrawSolidRectangleWithOutline(
+                        new Vector3[]
+                        {
+                            worldPos + new Vector3(-0.5f, 0, -0.5f) * gridManager.TileSize,
+                            worldPos + new Vector3(0.5f, 0, -0.5f) * gridManager.TileSize,
+                            worldPos + new Vector3(0.5f, 0, 0.5f) * gridManager.TileSize,
+                            worldPos + new Vector3(-0.5f, 0, 0.5f) * gridManager.TileSize
+                        },
+                        tileColor,
+                        Color.clear
+                    );
 
-                    // Draw cell outline
-                    Handles.color = new Color(0.5f, 0.5f, 0.5f, 0.3f);
-                    Handles.DrawWireCube(worldPos, cellSize);
-
-                    // Draw tile if it exists
-                    WorldTile tile = gridManager.WorldGrid.GetTile(x, y);
-                    if (tile != null)
-                    {
-                        // Color based on source layer
-                        Color tileColor = tile.SourceLayer != null ? tile.SourceLayer.LayerColor : Color.white;
-                        tileColor.a = 0.5f;
-                        Handles.color = tileColor;
-                        Handles.DrawSolidRectangleWithOutline(
-                            new Vector3[] {
-                                worldPos + new Vector3(-0.5f, 0, -0.5f) * gridManager.TileSize,
-                                worldPos + new Vector3(0.5f, 0, -0.5f) * gridManager.TileSize,
-                                worldPos + new Vector3(0.5f, 0, 0.5f) * gridManager.TileSize,
-                                worldPos + new Vector3(-0.5f, 0, 0.5f) * gridManager.TileSize
-                            },
-                            tileColor,
-                            Color.clear
-                        );
-
-                        // Draw tile type label
-                        Handles.Label(
-                            worldPos + Vector3.up * 0.1f,
-                            tile.Type.ToString(),
-                            new GUIStyle(EditorStyles.whiteBoldLabel)
-                            {
-                                fontSize = 10,
-                                alignment = TextAnchor.MiddleCenter,
-                                normal = { textColor = Color.black }
-                            }
-                        );
-                    }
+                    // Draw tile type label
+                    Handles.Label(
+                        worldPos + Vector3.up * 0.1f,
+                        tile.Type.ToString(),
+                        new GUIStyle(EditorStyles.whiteBoldLabel)
+                        {
+                            fontSize = 10,
+                            alignment = TextAnchor.MiddleCenter,
+                            normal = { textColor = Color.black }
+                        }
+                    );
                 }
             }
 
             // Highlight hovered cell
-            Vector2Int? hoveredPos = GetGridPositionFromMouse(Event.current.mousePosition);
+            var hoveredPos = GetGridPositionFromMouse(Event.current.mousePosition);
             if (hoveredPos.HasValue)
             {
-                Vector3 worldPos = gridManager.GridToWorldPosition(hoveredPos.Value.x, hoveredPos.Value.y);
-                Handles.color = isPainting ? Color.green : (isErasing ? Color.red : Color.yellow);
+                var worldPos = gridManager.GridToWorldPosition(hoveredPos.Value.x, hoveredPos.Value.y);
+                Handles.color = isPainting ? Color.green : isErasing ? Color.red : Color.yellow;
                 Handles.DrawWireCube(worldPos, Vector3.one * gridManager.TileSize * 1.1f);
 
                 // Show what will be painted
                 if (selectedLayer != null && !isPainting && !isErasing)
-                {
                     Handles.Label(
                         worldPos + Vector3.up * 0.5f,
                         $"Paint: {selectedLayer.TileType}",
                         EditorStyles.helpBox
                     );
-                }
             }
         }
     }
