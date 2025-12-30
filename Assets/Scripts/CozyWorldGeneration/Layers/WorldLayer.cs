@@ -11,6 +11,7 @@ namespace CozyWorldGeneration.Layers
         [SerializeField] private Texture2D previewTexture;
         [SerializeField] private Color layerColor = Color.white;
         [SerializeField] private int defaultLayerHeight = 0;
+        [SerializeField] private TileType tileType = TileType.Grass;
         [SerializeField] private bool lockFromPaint = false;
 
         public bool foldoutState = false;
@@ -18,6 +19,7 @@ namespace CozyWorldGeneration.Layers
         public string GUID { get => guid; private set => guid = value; }
         public string LayerName { get => layerName;  set => layerName = value; }
         public bool IsEnabled { get => isEnabled;  set => isEnabled = value; }
+        public TileType TileType { get => tileType;  set => tileType = value; }
         public Texture2D PreviewTexture { get => previewTexture;  set => previewTexture = value; }
         public Color LayerColor { get => layerColor; set => layerColor = value; }
         public int DefaultLayerHeight { get => defaultLayerHeight;  set => defaultLayerHeight = value; }

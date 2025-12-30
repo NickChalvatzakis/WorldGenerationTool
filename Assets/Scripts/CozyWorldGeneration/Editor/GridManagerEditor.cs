@@ -187,6 +187,13 @@ namespace CozyWorldGeneration.Editor
                 EditorUtility.SetDirty(layer);
             });
 
+            var tileTypeField = new EnumField("Tile Type", layer.TileType);
+            tileTypeField.RegisterValueChangedCallback(evt => 
+            {
+                layer.TileType = (TileType)evt.newValue;
+                EditorUtility.SetDirty(layer);
+            });
+
             var lockToggle = new Toggle("Lock From Paint") { value = layer.LockFromPaint };
             lockToggle.RegisterValueChangedCallback(evt => 
             {
@@ -225,6 +232,7 @@ namespace CozyWorldGeneration.Editor
 
             foldout.Add(nameField);
             foldout.Add(enabledToggle);
+            foldout.Add(tileTypeField);
             foldout.Add(lockToggle);
             foldout.Add(colorField);
             foldout.Add(heightField);

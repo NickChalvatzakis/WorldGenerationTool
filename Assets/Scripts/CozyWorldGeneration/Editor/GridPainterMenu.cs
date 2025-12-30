@@ -10,8 +10,8 @@ namespace CozyWorldGeneration.Editor
     /// </summary>
     public static class GridPainterMenu
     {
-        private const string MENU_PATH = "Tools/Dual Grid/";
-        private const string OVERLAY_PREF_KEY = "DualGrid_PainterOverlayEnabled";
+        private const string MENU_PATH = "Tools/Cozy World Generaion/";
+        private const string OVERLAY_PREF_KEY = "CozyWorld_PainterOverlayEnabled";
 
         [MenuItem(MENU_PATH + "Toggle Painter Overlay", false, 1)]
         public static void TogglePainterOverlay()

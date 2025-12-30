@@ -288,6 +288,20 @@ MonoBehaviour:
   gridWidth: 10
   gridHeight: 10
   tileSize: 1
+  worldLayerCollection:
+    guid: 
+    collectionName: 
+    assignedWorldLayers:
+    - fe7da672-ac36-4118-aab0-6b7056bce1a9
+    layers:
+    - {fileID: 11400000, guid: 9a835fdaa6fe9944da43343300ca7085, type: 2}
+    foldoutState: 1
+  visualLayerCollection:
+    guid: 
+    collectionName: 
+    assignedWorldLayers: []
+    layers: []
+    foldoutState: 0
   drawGizmos: 1
   drawWorldGrid: 1
   drawVisualGrid: 1

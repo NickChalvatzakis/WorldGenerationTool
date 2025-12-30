@@ -1,24 +1,28 @@
-﻿using UnityEngine;
+﻿using CozyWorldGeneration.Layers;
+using UnityEngine;
 
 namespace CozyWorldGeneration
 {
     // This will be the tiles of our main Grid. It will hold data state.
     public class WorldTile
     {
-        public WorldTile(Vector2Int gridPosition, TileType type)
+        public WorldTile(Vector2Int gridPosition, TileType type, WorldLayer sourceLayer = null)
         {
             GridPosition = gridPosition;
             Type = type;
             State = TileState.Normal;
+            SourceLayer = sourceLayer;
         }
 
-        public WorldTile(int x, int y, TileType type) : this(new Vector2Int(x, y), type)
+        public WorldTile(int x, int y, TileType type, WorldLayer sourceLayer = null) : this(new Vector2Int(x, y), type,
+            sourceLayer)
         {
         }
 
         public Vector2Int GridPosition { get; private set; }
         public TileType Type { get; set; }
         public TileState State { get; set; }
+        public WorldLayer SourceLayer { get; set; }
 
         public bool IsWalkable()
         {
@@ -31,58 +35,39 @@ namespace CozyWorldGeneration
         }
     }
 
+    /// <summary>
+    /// Simplified visual tile - just stores position, configuration, and visual reference.
+    /// Much lighter than the previous implementation.
+    /// </summary>
     public class VisualTile
     {
-        private WorldGrid worldGrid;
-
-        public VisualTile(Vector2Int gridPosition, WorldGrid worldGrid)
-        {
-            GridPosition = gridPosition;
-            this.worldGrid = worldGrid;
-            ConfigurationIndex = 0;
-        }
-
-        public VisualTile(int x, int y, WorldGrid worldGrid) : this(
-            new Vector2Int(x, y), worldGrid)
-        {
-        }
-
-        public Vector2Int GridPosition { get; set; }
+        public Vector2Int GridPosition { get; private set; }
         public int ConfigurationIndex { get; set; }
         public GameObject VisualInstance { get; set; }
 
-        // Update the visual configuration based on the 4 overlapping WorldGrid tiles.
-        // the 4 tiles are x,y x+1,y x, y+1 x+1,y+1
-        // so we have 16 different configurations 
+        public VisualTile(int x, int y)
+        {
+            GridPosition = new Vector2Int(x, y);
+            ConfigurationIndex = 0;
+        }
+
+        /// <summary>
+        /// Updates the visual representation based on configuration index.
+        /// TODO: Implement mesh/prefab system here.
+        /// </summary>
         public void UpdateVisual()
         {
-            // var x = GridPosition.x;
-            // var y = GridPosition.y;
-            //
-            // var config = 0;
-            //
-            // if (IsTileFilled(x, y)) config |= 1;
-            // if (IsTileFilled(x + 1, y)) config |= 2;
-            // if (IsTileFilled(x, y + 1)) config |= 4;
-            // if (IsTileFilled(x + 1, y + 1)) config |= 8;
+            // Placeholder for visual update logic
+            // You'll load the appropriate mesh/prefab for ConfigurationIndex here
 
-            // ConfigurationIndex = config;
-
-            UpdateMesh();
+#if UNITY_EDITOR
+            if (ConfigurationIndex > 0) Debug.Log($"VisualTile at {GridPosition} -> Config {ConfigurationIndex}");
+#endif
         }
 
-        // private bool IsTileFilled(int x, int y)
-        // {
-        //     var tile = worldGrid.GetTile(x, y);
-        //     return tile != null && tile.Type != TileType.None;
-        // }
-
-        private void UpdateMesh()
-        {
-            // TODO: we will probably make the meshes procedurally, but we'll see
-            Debug.Log($"VisualTile at {GridPosition} update to config {ConfigurationIndex}");
-        }
-
+        /// <summary>
+        /// Destroys the visual GameObject if it exists.
+        /// </summary>
         public void DestroyVisual()
         {
             if (VisualInstance != null)
@@ -93,6 +78,8 @@ namespace CozyWorldGeneration
         }
     }
 
+    // TODO: Check if it's possible to make enum types as Scriptable Objects so we can just add them
+    // from a file faster instead of having to open the code each time
     public enum TileType
     {
         None,
