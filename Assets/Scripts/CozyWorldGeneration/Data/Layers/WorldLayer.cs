@@ -1,4 +1,5 @@
 ﻿using System;
+using CozyWorldGeneration.Core.Enums;
 using CozyWorldGeneration.Events;
 using UnityEngine;
 
@@ -14,7 +15,6 @@ namespace CozyWorldGeneration.Data.Layers
         [SerializeField] private string guid = Guid.NewGuid().ToString();
         [SerializeField] private string layerName = "New Layer";
         [SerializeField] private bool isEnabled = true;
-        [SerializeField] private TileType tileType = TileType.Grass;
         [SerializeField] private Texture2D previewTexture;
         [SerializeField] private Color layerColor = Color.white;
         [SerializeField] private int defaultLayerHeight = 0;
@@ -39,12 +39,6 @@ namespace CozyWorldGeneration.Data.Layers
         {
             get => isEnabled;
             set => isEnabled = value;
-        }
-
-        public TileType TileType
-        {
-            get => tileType;
-            set => tileType = value;
         }
 
         public Texture2D PreviewTexture

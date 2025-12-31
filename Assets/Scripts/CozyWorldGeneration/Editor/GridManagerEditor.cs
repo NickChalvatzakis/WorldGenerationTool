@@ -1,4 +1,5 @@
-﻿using CozyWorldGeneration.Data.Layers;
+﻿using CozyWorldGeneration.Core;
+using CozyWorldGeneration.Data.Layers;
 using CozyWorldGeneration.Data.Tilesets;
 using UnityEditor;
 using UnityEngine;
@@ -62,14 +63,14 @@ namespace CozyWorldGeneration.Editor
 
             root.Add(gridSettingsFoldout);
 
-            // Rebuild Visuals button
-            var rebuildButton = new Button(() => { gridManager.RebuildAllVisuals(); })
-            {
-                text = "Rebuild All Visuals"
-            };
-            rebuildButton.style.marginTop = 10;
-            rebuildButton.style.height = 30;
-            root.Add(rebuildButton);
+            // // Rebuild Visuals button
+            // var rebuildButton = new Button(() => { gridManager.RebuildAllVisuals(); })
+            // {
+            //     text = "Rebuild All Visuals"
+            // };
+            // rebuildButton.style.marginTop = 10;
+            // rebuildButton.style.height = 30;
+            // root.Add(rebuildButton);
         }
 
         private void CreateLayerCollectionSection()
@@ -167,13 +168,6 @@ namespace CozyWorldGeneration.Editor
                 EditorUtility.SetDirty(layer);
             });
 
-            var tileTypeField = new EnumField("Tile Type", layer.TileType);
-            tileTypeField.RegisterValueChangedCallback(evt =>
-            {
-                layer.TileType = (TileType)evt.newValue;
-                EditorUtility.SetDirty(layer);
-            });
-
             var lockToggle = new Toggle("Lock From Paint") { value = layer.LockFromPaint };
             lockToggle.RegisterValueChangedCallback(evt =>
             {
@@ -192,7 +186,6 @@ namespace CozyWorldGeneration.Editor
 
             foldout.Add(nameField);
             foldout.Add(enabledToggle);
-            foldout.Add(tileTypeField);
             foldout.Add(lockToggle);
             foldout.Add(colorField);
             foldout.Add(clearBtn);

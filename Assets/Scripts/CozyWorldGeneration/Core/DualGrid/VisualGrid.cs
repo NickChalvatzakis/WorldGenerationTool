@@ -1,9 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
+using CozyWorldGeneration.Core.Enums;
 using CozyWorldGeneration.Data.Layers;
 using UnityEngine;
 
-namespace CozyWorldGeneration
+namespace CozyWorldGeneration.Core.DualGrid
 {
     public class VisualGrid : Grid<VisualTile>
     {
@@ -12,7 +12,7 @@ namespace CozyWorldGeneration
         public Transform TilesContainer { get; set; }
         public float TileSize { get; set; }
 
-        // The 4 neighbor offsets for a visual tile
+        // The 4 neighbour offsets for a visual tile
         // |_0_|_1_|
         // |_2_|_3_|
         private static readonly Vector2Int[] NEIGHBOUR_OFFSETS = new Vector2Int[]
@@ -63,13 +63,13 @@ namespace CozyWorldGeneration
             if (tile == null)
                 return;
 
-            // Get the 4 overlapping world tile types
-            var bottomLeft = worldGrid.GetTileTypeAt(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y);
-            var bottomRight = worldGrid.GetTileTypeAt(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y);
-            var topLeft = worldGrid.GetTileTypeAt(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y);
-            var topRight = worldGrid.GetTileTypeAt(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y);
+            // Check if the 4 overlapping world positions have tiles (boolean check)
+            var bottomLeft = worldGrid.HasTileAt(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y);
+            var bottomRight = worldGrid.HasTileAt(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y);
+            var topLeft = worldGrid.HasTileAt(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y);
+            var topRight = worldGrid.HasTileAt(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y);
 
-            // Calculate configuration using bit flags (0-15)
+            // Calculate configuration index using bit flags (0-15)
             tile.ConfigurationIndex = CalculateConfiguration(bottomLeft, bottomRight, topLeft, topRight);
 
             // Find the dominant WorldLayer to determine which VisualLayer to use
@@ -85,6 +85,7 @@ namespace CozyWorldGeneration
             // Update the visual (mesh/prefab) if container is set
             if (TilesContainer != null) tile.UpdateVisual(TilesContainer, TileSize);
         }
+
 
         /// <summary>
         /// Gets the dominant WorldLayer from the 4 overlapping tiles.
@@ -109,14 +110,13 @@ namespace CozyWorldGeneration
         /// <summary>
         /// Calculates configuration index (0-15) based on which neighbors are filled.
         /// </summary>
-        private int CalculateConfiguration(TileType bottomLeft, TileType bottomRight, TileType topLeft,
-            TileType topRight)
+        private int CalculateConfiguration(bool bottomLeft, bool bottomRight, bool topLeft, bool topRight)
         {
             var config = 0;
-            if (bottomLeft != TileType.None) config |= 1;
-            if (bottomRight != TileType.None) config |= 2;
-            if (topLeft != TileType.None) config |= 4;
-            if (topRight != TileType.None) config |= 8;
+            if (bottomLeft) config |= 1;
+            if (bottomRight) config |= 2;
+            if (topLeft) config |= 4;
+            if (topRight) config |= 8;
             return config;
         }
 

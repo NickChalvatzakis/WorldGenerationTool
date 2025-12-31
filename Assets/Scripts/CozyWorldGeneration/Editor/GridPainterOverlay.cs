@@ -3,6 +3,7 @@ using UnityEditor.Overlays;
 using UnityEngine;
 using UnityEngine.UIElements;
 using System.Collections.Generic;
+using CozyWorldGeneration.Core;
 using CozyWorldGeneration.Data.Layers;
 
 namespace CozyWorldGeneration.Editor

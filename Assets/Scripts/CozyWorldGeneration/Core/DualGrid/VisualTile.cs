@@ -2,40 +2,8 @@
 using CozyWorldGeneration.Data.Tilesets;
 using UnityEngine;
 
-namespace CozyWorldGeneration
+namespace CozyWorldGeneration.Core.DualGrid
 {
-    // This will be the tiles of our main Grid. It will hold data state.
-    public class WorldTile
-    {
-        public WorldTile(Vector2Int gridPosition, TileType type, WorldLayer sourceLayer = null)
-        {
-            GridPosition = gridPosition;
-            Type = type;
-            State = TileState.Normal;
-            SourceLayer = sourceLayer;
-        }
-
-        public WorldTile(int x, int y, TileType type, WorldLayer sourceLayer = null) : this(new Vector2Int(x, y), type,
-            sourceLayer)
-        {
-        }
-
-        public Vector2Int GridPosition { get; private set; }
-        public TileType Type { get; set; }
-        public TileState State { get; set; }
-        public WorldLayer SourceLayer { get; set; }
-
-        public bool IsWalkable()
-        {
-            return Type != TileType.None; // Will add more in the future;
-        }
-
-        public bool IsModifiable()
-        {
-            return Type != TileType.None; // Will add more in the future;
-        }
-    }
-
     public class VisualTile
     {
         public Vector2Int GridPosition { get; private set; }
@@ -93,9 +61,9 @@ namespace CozyWorldGeneration
 
             // Position and rotate
             var worldPos = new Vector3(
-                (GridPosition.x + 0.5f) * tileSize,
+                (GridPosition.x + 1.0f) * tileSize,
                 visualLayer != null ? visualLayer.DefaultLayerHeight : 0,
-                (GridPosition.y + 0.5f) * tileSize
+                (GridPosition.y + 1.0f) * tileSize
             );
             VisualInstance.transform.position = worldPos;
             VisualInstance.transform.rotation = config.GetRotation();
@@ -139,26 +107,5 @@ namespace CozyWorldGeneration
                 VisualInstance = null;
             }
         }
-    }
-
-// TODO: Check if it's possible to make enum types as Scriptable Objects so we can just add them
-// from a file faster instead of having to open the code each time
-    public enum TileType
-    {
-        None,
-        Grass,
-        Dirt,
-        Stone,
-        Water,
-        Sand
-    }
-
-// This is mostly for grass but we'll see
-    public enum TileState
-    {
-        Normal,
-        Dug,
-        Tilled,
-        Waterlogged
     }
 }

@@ -1,8 +1,10 @@
-﻿using CozyWorldGeneration.Data.Layers;
+﻿using CozyWorldGeneration.Core.DualGrid;
+using CozyWorldGeneration.Core.Enums;
+using CozyWorldGeneration.Data.Layers;
 using CozyWorldGeneration.Events;
 using UnityEngine;
 
-namespace CozyWorldGeneration
+namespace CozyWorldGeneration.Core
 {
     /// <summary>
     /// Central manager for the dual grid system.
@@ -112,6 +114,7 @@ namespace CozyWorldGeneration
             foreach (var layer in worldLayerCollection.Layers) layer?.InitializePreviewTexture(gridWidth, gridHeight);
         }
 
+        // TODO: add all the actions in events not just layer actions.
         private void SubscribeToEvents()
         {
             ToolEvents.OnLayerAdded += HandleLayerAdded;
@@ -167,19 +170,9 @@ namespace CozyWorldGeneration
 #endif
         }
 
-        public void PlaceTile(int x, int y, TileType type)
-        {
-            WorldGrid?.PlaceTile(x, y, type);
-        }
-
         public void RemoveTile(int x, int y)
         {
             WorldGrid?.SetTile(x, y, null);
-        }
-
-        public void ModifyTile(int x, int y, TileState newState)
-        {
-            WorldGrid?.ModifyTileState(x, y, newState);
         }
 
         public WorldTile GetWorldTile(int x, int y)
@@ -220,22 +213,24 @@ namespace CozyWorldGeneration
             return new Vector2Int(x, y);
         }
 
-        /// <summary>
-        /// Rebuilds all visual tiles from the current WorldGrid state.
-        /// </summary>
-        [ContextMenu("Rebuild All Visuals")]
-        public void RebuildAllVisuals()
-        {
-            if (VisualGrid == null)
-            {
-                Debug.LogWarning("VisualGrid is null, cannot rebuild visuals");
-                return;
-            }
+        //TODO: rebuild world grid. and that will rebuild the visuals
 
-            Debug.Log("Rebuilding all visual tiles...");
-            VisualGrid.UpdateAllVisuals();
-            Debug.Log("Visual rebuild complete");
-        }
+        // /// <summary>
+        // /// Rebuilds all visual tiles from the current WorldGrid state.
+        // /// </summary>
+        // [ContextMenu("Rebuild All Visuals")]
+        // public void RebuildAllVisuals()
+        // {
+        //     if (VisualGrid == null)
+        //     {
+        //         Debug.LogWarning("VisualGrid is null, cannot rebuild visuals");
+        //         return;
+        //     }
+        //
+        //     Debug.Log("Rebuilding all visual tiles...");
+        //     VisualGrid.UpdateAllVisuals();
+        //     Debug.Log("Visual rebuild complete");
+        // }
 
         #region Gizmos
 
@@ -271,7 +266,7 @@ namespace CozyWorldGeneration
             for (var y = 0; y < gridHeight; y++)
             {
                 var tile = WorldGrid.GetTile(x, y);
-                if (tile != null && tile.Type != TileType.None)
+                if (tile != null)
                 {
                     var tileColor = tile.SourceLayer != null ? tile.SourceLayer.LayerColor : Color.white;
                     tileColor.a = 0.3f;
@@ -342,19 +337,6 @@ namespace CozyWorldGeneration
         {
             ClearGrids();
             InitializeGrids();
-        }
-
-        [ContextMenu("Fill Test Pattern")]
-        public void FillTestPattern()
-        {
-            if (WorldGrid == null) InitializeGrids();
-
-            for (var x = 0; x < gridWidth; x++)
-            for (var y = 0; y < gridHeight; y++)
-                if ((x + y) % 2 == 0)
-                    PlaceTile(x, y, TileType.Grass);
-
-            Debug.Log("Test pattern created");
         }
 #endif
     }

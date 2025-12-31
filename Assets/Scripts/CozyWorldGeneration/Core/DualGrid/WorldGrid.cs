@@ -1,7 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using CozyWorldGeneration.Core.Enums;
+using CozyWorldGeneration.Data.Layers;
 using UnityEngine;
 
-namespace CozyWorldGeneration
+namespace CozyWorldGeneration.Core.DualGrid
 {
     public class WorldGrid : Grid<WorldTile>
     {
@@ -30,38 +31,18 @@ namespace CozyWorldGeneration
             if (visualGrid != null) NotifyVisualGridUpdate(x, y);
         }
 
-        /// <summary>
-        /// Creates and places a new tile at the specified position.
-        /// </summary>
-        public void PlaceTile(int x, int y, TileType type)
+        public void PlaceTile(int x, int y, WorldLayer selectedLayer)
         {
-            var tile = new WorldTile(x, y, type);
+            var tile = new WorldTile(x, y, selectedLayer);
             SetTile(x, y, tile);
         }
 
         /// <summary>
-        /// Modifies the state of a tile (e.g., digging, tilling).
+        /// Checks if a tile exists at a position (for visual grid calculations).
         /// </summary>
-        public void ModifyTileState(int x, int y, TileState newState)
+        public bool HasTileAt(int x, int y)
         {
-            var tile = GetTile(x, y);
-            if (tile != null && tile.IsModifiable())
-            {
-                tile.State = newState;
-
-                // Visual update (state changes might affect visuals)
-                if (visualGrid != null) NotifyVisualGridUpdate(x, y);
-            }
-        }
-
-        /// <summary>
-        /// Gets the TileType at a position (or None if no tile exists).
-        /// Convenient helper for visual grid calculations.
-        /// </summary>
-        public TileType GetTileTypeAt(int x, int y)
-        {
-            var tile = GetTile(x, y);
-            return tile != null ? tile.Type : TileType.None;
+            return GetTile(x, y) != null;
         }
 
         /// <summary>

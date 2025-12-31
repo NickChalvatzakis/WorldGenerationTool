@@ -1,7 +1,7 @@
-﻿using UnityEngine;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
-namespace CozyWorldGeneration
+namespace CozyWorldGeneration.Core
 {
     /// <summary>
     /// Generic base class for all grid types in the system.

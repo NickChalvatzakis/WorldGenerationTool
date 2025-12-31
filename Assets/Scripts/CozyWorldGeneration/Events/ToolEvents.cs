@@ -1,4 +1,5 @@
 ﻿using System;
+using CozyWorldGeneration.Core.Enums;
 using CozyWorldGeneration.Data.Layers;
 using UnityEngine;
 

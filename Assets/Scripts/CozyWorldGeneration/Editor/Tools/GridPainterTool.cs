@@ -1,4 +1,5 @@
-﻿using CozyWorldGeneration.Data.Layers;
+﻿using CozyWorldGeneration.Core;
+using CozyWorldGeneration.Data.Layers;
 using UnityEditor;
 using UnityEditor.EditorTools;
 using UnityEngine;
@@ -156,9 +157,11 @@ namespace CozyWorldGeneration.Editor
             selectedLayer.PaintPixel(x, y, true);
 
             // Create or update the world tile
-            gridManager.WorldGrid.PlaceTile(x, y, selectedLayer.TileType);
+            gridManager.WorldGrid.PlaceTile(x, y, selectedLayer);
 
             // Set the source layer for tracking
+
+            //TODO: remove this we already do this now from refactoring
             var tile = gridManager.WorldGrid.GetTile(x, y);
             if (tile != null) tile.SourceLayer = selectedLayer;
 
@@ -186,6 +189,7 @@ namespace CozyWorldGeneration.Editor
             }
         }
 
+        // TODO: Add a property in debug whether i want to see that or not
         private void DrawGridPreview()
         {
             if (gridManager == null || gridManager.WorldGrid == null)
@@ -224,7 +228,7 @@ namespace CozyWorldGeneration.Editor
                     // Draw tile type label
                     Handles.Label(
                         worldPos + Vector3.up * 0.1f,
-                        tile.Type.ToString(),
+                        tile.SourceLayer.name,
                         new GUIStyle(EditorStyles.whiteBoldLabel)
                         {
                             fontSize = 10,
@@ -247,7 +251,7 @@ namespace CozyWorldGeneration.Editor
                 if (selectedLayer != null && !isPainting && !isErasing)
                     Handles.Label(
                         worldPos + Vector3.up * 0.5f,
-                        $"Paint: {selectedLayer.TileType}",
+                        $"Paint: {selectedLayer.LayerName}",
                         EditorStyles.helpBox
                     );
             }

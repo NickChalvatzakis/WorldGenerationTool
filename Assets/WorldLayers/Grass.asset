@@ -15,7 +15,6 @@ MonoBehaviour:
   guid: 39b6b481-43f0-4fe0-8c96-975912df6dde
   layerName: Grass
   isEnabled: 1
-  tileType: 1
   previewTexture: {fileID: 0}
   layerColor: {r: 0.27946717, g: 0.7830189, b: 0.12927197, a: 1}
   defaultLayerHeight: 0
