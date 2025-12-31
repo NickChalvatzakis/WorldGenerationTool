@@ -1,4 +1,5 @@
-﻿using CozyWorldGeneration.Core.DualGrid;
+﻿using System.Collections.Generic;
+using CozyWorldGeneration.Core.DualGrid;
 using CozyWorldGeneration.Core.Enums;
 using CozyWorldGeneration.Data.Layers;
 using CozyWorldGeneration.Events;
@@ -6,11 +7,7 @@ using UnityEngine;
 
 namespace CozyWorldGeneration.Core
 {
-    /// <summary>
-    /// Central manager for the dual grid system.
-    /// Handles creation, initialization, and coordination between WorldGrid and VisualGrid.
-    /// Use this as the main entry point for editor tools.
-    /// </summary>
+    [ExecuteAlways]
     public class GridManager : MonoBehaviour
     {
         [Header("Grid Settings")] [SerializeField]
@@ -18,6 +15,7 @@ namespace CozyWorldGeneration.Core
 
         [SerializeField] private int gridHeight = 20;
         [SerializeField] private float tileSize = 1f;
+        private Dictionary<WorldLayer, VisualGrid> visualGrids = new();
 
         [Header("Layer Collections")] [SerializeField]
         private WorldLayerCollection worldLayerCollection;
@@ -29,9 +27,9 @@ namespace CozyWorldGeneration.Core
         [SerializeField] private bool drawVisualGrid = true;
         [SerializeField] private Color worldGridColor = new(0.2f, 0.2f, 0.2f);
         [SerializeField] private Color visualGridColor = new(0.2f, 0.2f, 0.2f);
+        // [SerializeField] private bool drawDebugTiles = false;
 
         public WorldGrid WorldGrid { get; private set; }
-        public VisualGrid VisualGrid { get; private set; }
 
         public int Width => gridWidth;
         public int Height => gridHeight;
@@ -42,7 +40,9 @@ namespace CozyWorldGeneration.Core
 
         private Transform visualTilesContainer;
 
-        public Transform VisualTilesContainer => visualTilesContainer;
+        // public Transform VisualTilesContainer => visualTilesContainer;
+        //
+        // public bool DrawDebugTiles => drawDebugTiles;
 
         private void Awake()
         {
@@ -67,7 +67,7 @@ namespace CozyWorldGeneration.Core
 #if UNITY_EDITOR
         private void OnValidate()
         {
-            if (WorldGrid == null || VisualGrid == null) InitializeGrids();
+            if (WorldGrid == null) InitializeGrids();
         }
 
         private void Reset()
@@ -90,17 +90,11 @@ namespace CozyWorldGeneration.Core
             }
 
             WorldGrid = new WorldGrid(gridWidth, gridHeight);
-            VisualGrid = new VisualGrid(gridWidth - 1, gridHeight - 1, WorldGrid, tileSize);
-            WorldGrid.LinkVisualGrid(VisualGrid);
 
-            // Set the main tiles container
-            VisualGrid.TilesContainer = visualTilesContainer;
+            foreach (var layer in worldLayerCollection.Layers)
+                if (layer != null)
+                    CreateVisualGridForLayer(layer);
 
-            // Set the delegate to find VisualLayers
-            VisualGrid.GetVisualLayerForWorldLayer = (worldLayer) =>
-            {
-                return visualLayerCollection?.GetVisualLayerForWorldLayer(worldLayer);
-            };
 
             InitializeLayerTextures();
             ToolEvents.RaiseGridInitialized(gridWidth, gridHeight);
@@ -108,6 +102,29 @@ namespace CozyWorldGeneration.Core
             Debug.Log(
                 $"GridManager initialized: WorldGrid ({gridWidth}x{gridHeight}), VisualGrid ({gridWidth - 1}x{gridHeight - 1})");
         }
+
+        private void CreateVisualGridForLayer(WorldLayer layer)
+        {
+            if (visualGrids.ContainsKey(layer)) return;
+
+            var visualGrid = new VisualGrid(gridWidth - 1, gridHeight - 1, WorldGrid, layer, TileSize);
+            var container = new GameObject($"Layer_{layer.LayerName}");
+            container.transform.SetParent(visualTilesContainer);
+
+            // Auto-offset based on layer index
+            var layerIndex = worldLayerCollection.Layers.IndexOf(layer);
+            container.transform.localPosition = new Vector3(0, layerIndex * -0.02f, 0);
+
+            visualGrid.TilesContainer = container.transform;
+
+            visualGrid.GetVisualLayerForWorldLayer = (worldLayer) =>
+            {
+                return visualLayerCollection?.GetVisualLayerForWorldLayer(worldLayer);
+            };
+
+            visualGrids[layer] = visualGrid;
+        }
+
 
         private void InitializeLayerTextures()
         {
@@ -120,7 +137,7 @@ namespace CozyWorldGeneration.Core
             ToolEvents.OnLayerAdded += HandleLayerAdded;
             ToolEvents.OnLayerRemoved += HandleLayerRemoved;
             ToolEvents.OnLayerCleared += HandleLayerCleared;
-            ToolEvents.OnPixelPainted += HandlePixelPainted;
+            ToolEvents.OnTileChanged += HandleTileChanged;
         }
 
         private void UnsubscribeFromEvents()
@@ -128,12 +145,33 @@ namespace CozyWorldGeneration.Core
             ToolEvents.OnLayerAdded -= HandleLayerAdded;
             ToolEvents.OnLayerRemoved -= HandleLayerRemoved;
             ToolEvents.OnLayerCleared -= HandleLayerCleared;
-            ToolEvents.OnPixelPainted -= HandlePixelPainted;
+            ToolEvents.OnTileChanged -= HandleTileChanged;
+        }
+
+        private void HandleTileChanged(int x, int y)
+        {
+            Debug.Log($"[GridManager] HandleTileChanged({x}, {y}) - visualGrids count: {visualGrids.Count}");
+
+            var affectedPositions = new Vector2Int[]
+            {
+                new(x, y),
+                new(x - 1, y),
+                new(x, y - 1),
+                new(x - 1, y - 1)
+            };
+
+            foreach (var visualGrid in visualGrids.Values)
+            foreach (var pos in affectedPositions)
+                visualGrid.UpdateVisualTile(pos.x, pos.y);
         }
 
         private void HandleLayerAdded(WorldLayer layer)
         {
-            if (layer != null) layer.InitializePreviewTexture(gridWidth, gridHeight);
+            if (layer != null)
+            {
+                layer.InitializePreviewTexture(gridWidth, gridHeight);
+                CreateVisualGridForLayer(layer);
+            }
         }
 
         private void HandleLayerRemoved(WorldLayer layer)
@@ -146,64 +184,55 @@ namespace CozyWorldGeneration.Core
             ClearTilesFromLayer(layer);
         }
 
-        private void HandlePixelPainted(WorldLayer layer, int x, int y, bool painted)
-        {
-            // Hook for future features (undo/redo, auto-save, etc.)
-        }
-
         private void ClearTilesFromLayer(WorldLayer layer)
         {
             if (WorldGrid == null) return;
 
-            var tilesToRemove = new System.Collections.Generic.List<Vector2Int>();
+            var tilesToRemove = new List<Vector3Int>();
 
             foreach (var position in WorldGrid.GetAllPositions())
             {
-                var tile = WorldGrid.GetTile(position);
-                if (tile != null && tile.SourceLayer == layer) tilesToRemove.Add(position);
+                var tile = WorldGrid.GetTile(position.x, position.y, position.z);
+                if (tile != null && tile.SourceLayer == layer)
+                    tilesToRemove.Add(position);
             }
 
-            foreach (var position in tilesToRemove) WorldGrid.SetTile(position.x, position.y, null);
+            foreach (var position in tilesToRemove)
+                WorldGrid.RemoveTile(position.x, position.y, position.z);
 
 #if UNITY_EDITOR
             UnityEditor.SceneView.RepaintAll();
 #endif
         }
 
-        public void RemoveTile(int x, int y)
+        public void RemoveTile(int x, int y, int level)
         {
-            WorldGrid?.SetTile(x, y, null);
+            WorldGrid?.RemoveTile(x, y, level);
         }
 
-        public WorldTile GetWorldTile(int x, int y)
+        public WorldTile GetWorldTile(int x, int y, int level)
         {
-            return WorldGrid?.GetTile(x, y);
+            return WorldGrid?.GetTile(x, y, level);
         }
 
-        public VisualTile GetVisualTile(int x, int y)
+        public WorldTile GetTopWorldTile(int x, int y)
         {
-            return VisualGrid?.GetTile(x, y);
+            return WorldGrid?.GetTopTile(x, y);
         }
 
-        public int GetVisualConfiguration(int x, int y)
-        {
-            var tile = VisualGrid?.GetTile(x, y);
-            return tile?.ConfigurationIndex ?? 0;
-        }
 
         public void ClearGrids()
         {
-            VisualGrid?.Clear();
+            foreach (var visualGrid in visualGrids.Values)
+                visualGrid?.Clear();
+            visualGrids.Clear();
             WorldGrid?.Clear();
             Debug.Log("Grids cleared");
         }
 
-        public Vector3 GridToWorldPosition(int x, int y, bool isVisualGrid = false)
+        public Vector3 GridToWorldPosition(int x, int y)
         {
-            if (isVisualGrid)
-                return VisualGrid.GetWorldPosition(x, y, tileSize);
-            else
-                return new Vector3((x + 0.5f) * tileSize, 0f, (y + 0.5f) * tileSize);
+            return new Vector3((x + 0.5f) * tileSize, 0f, (y + 0.5f) * tileSize);
         }
 
         public Vector2Int WorldToGridPosition(Vector3 worldPos)
@@ -236,7 +265,7 @@ namespace CozyWorldGeneration.Core
 
         private void OnDrawGizmos()
         {
-            if (!drawGizmos || WorldGrid == null || VisualGrid == null)
+            if (!drawGizmos || WorldGrid == null)
                 return;
 
             if (drawWorldGrid) DrawWorldGridGizmos();
@@ -262,22 +291,29 @@ namespace CozyWorldGeneration.Core
                 Gizmos.DrawLine(start, end);
             }
 
-            for (var x = 0; x < gridWidth; x++)
-            for (var y = 0; y < gridHeight; y++)
+            // Draw all tiles across all levels
+            foreach (var position in WorldGrid.GetAllPositions())
             {
-                var tile = WorldGrid.GetTile(x, y);
+                var tile = WorldGrid.GetTile(position.x, position.y, position.z);
                 if (tile != null)
                 {
+                    var x = position.x;
+                    var y = position.y;
+                    var level = position.z;
+
                     var tileColor = tile.SourceLayer != null ? tile.SourceLayer.LayerColor : Color.white;
                     tileColor.a = 0.3f;
                     Gizmos.color = tileColor;
 
+                    // Offset Y slightly based on level to see stacked tiles
+                    var yOffset = 0.01f + level * 0.02f;
+
                     var corners = new Vector3[4]
                     {
-                        new(x * tileSize, 0.01f, y * tileSize),
-                        new((x + 1) * tileSize, 0.01f, y * tileSize),
-                        new((x + 1) * tileSize, 0.01f, (y + 1) * tileSize),
-                        new(x * tileSize, 0.01f, (y + 1) * tileSize)
+                        new(x * tileSize, yOffset, y * tileSize),
+                        new((x + 1) * tileSize, yOffset, y * tileSize),
+                        new((x + 1) * tileSize, yOffset, (y + 1) * tileSize),
+                        new(x * tileSize, yOffset, (y + 1) * tileSize)
                     };
 
                     Gizmos.DrawLine(corners[0], corners[1]);
@@ -289,6 +325,7 @@ namespace CozyWorldGeneration.Core
                 }
             }
         }
+
 
         private void DrawVisualGridGizmos()
         {
@@ -313,20 +350,22 @@ namespace CozyWorldGeneration.Core
 
             for (var x = 0; x < gridWidth - 1; x++)
             for (var y = 0; y < gridHeight - 1; y++)
-            {
-                var tile = VisualGrid.GetTile(x, y);
-                if (tile != null && tile.ConfigurationIndex > 0)
+                foreach (var visualGrid in visualGrids.Values)
                 {
-                    var pos = GridToWorldPosition(x, y, true) + new Vector3(tileSize * 0.5f, 0, tileSize * 0.5f);
-                    pos.y = 0.02f;
+                    var tile = visualGrid.GetTile(x, y);
+                    if (tile != null && tile.ConfigurationIndex > 0)
+                    {
+                        var pos = GridToWorldPosition(x, y) + new Vector3(tileSize * 0.5f, 0, tileSize * 0.5f);
+                        pos.y = 0.02f;
 
-                    Gizmos.color = new Color(0f, 0.8f, 1f, 0.8f);
+                        Gizmos.color = new Color(0f, 0.8f, 1f, 0.8f);
 
-                    var crossSize = tileSize * 0.1f;
-                    Gizmos.DrawLine(pos - Vector3.right * crossSize, pos + Vector3.right * crossSize);
-                    Gizmos.DrawLine(pos - Vector3.forward * crossSize, pos + Vector3.forward * crossSize);
+                        var crossSize = tileSize * 0.1f;
+                        Gizmos.DrawLine(pos - Vector3.right * crossSize, pos + Vector3.right * crossSize);
+                        Gizmos.DrawLine(pos - Vector3.forward * crossSize, pos + Vector3.forward * crossSize);
+                        break;
+                    }
                 }
-            }
         }
 
         #endregion

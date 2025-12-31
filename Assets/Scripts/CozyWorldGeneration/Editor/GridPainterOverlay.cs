@@ -264,24 +264,23 @@ namespace CozyWorldGeneration.Editor
                 layer.ClearPreviewTexture();
                 EditorUtility.SetDirty(layer);
 
-                // Make sure we have the active grid manager
                 if (activeGridManager == null) RefreshGridManager();
 
-                // Directly clear tiles from the grid
                 if (activeGridManager != null && activeGridManager.WorldGrid != null)
                 {
                     Debug.Log($"[Overlay] GridManager found, clearing tiles from grid");
 
-                    var tilesToRemove = new List<Vector2Int>();
+                    var tilesToRemove = new List<Vector3Int>();
 
                     foreach (var position in activeGridManager.WorldGrid.GetAllPositions())
                     {
-                        var tile = activeGridManager.WorldGrid.GetTile(position);
-                        if (tile != null && tile.SourceLayer == layer) tilesToRemove.Add(position);
+                        var tile = activeGridManager.WorldGrid.GetTile(position.x, position.y, position.z);
+                        if (tile != null && tile.SourceLayer == layer)
+                            tilesToRemove.Add(position);
                     }
 
                     foreach (var position in tilesToRemove)
-                        activeGridManager.WorldGrid.SetTile(position.x, position.y, null);
+                        activeGridManager.WorldGrid.RemoveTile(position.x, position.y, position.z);
 
                     Debug.Log(
                         $"[Overlay] Cleared layer: {layer.LayerName} - Removed {tilesToRemove.Count} tiles from grid");

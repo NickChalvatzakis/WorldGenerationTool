@@ -8,6 +8,8 @@ namespace CozyWorldGeneration.Core.DualGrid
     public class VisualGrid : Grid<VisualTile>
     {
         private WorldGrid worldGrid;
+        private WorldLayer worldLayer;
+        private int level;
         public Vector2 Offset { get; private set; }
         public Transform TilesContainer { get; set; }
         public float TileSize { get; set; }
@@ -26,9 +28,12 @@ namespace CozyWorldGeneration.Core.DualGrid
         // Delegate to get VisualLayer for a WorldLayer (set by GridManager)
         public Func<WorldLayer, VisualLayer> GetVisualLayerForWorldLayer { get; set; }
 
-        public VisualGrid(int width, int height, WorldGrid worldGrid, float tileSize = 1f) : base(width, height)
+        public VisualGrid(int width, int height, WorldGrid worldGrid, WorldLayer worldLayer, float tileSize = 1f) :
+            base(width, height)
         {
             this.worldGrid = worldGrid;
+            this.worldLayer = worldLayer;
+            level = worldLayer?.LayerLevel ?? 0; // ADD THIS
             TileSize = tileSize;
             Offset = new Vector2(0.5f, 0.5f);
 
@@ -48,9 +53,6 @@ namespace CozyWorldGeneration.Core.DualGrid
             }
         }
 
-        /// <summary>
-        /// Updates a specific visual tile's configuration based on its 4 WorldGrid neighbors.
-        /// </summary>
         public void UpdateVisualTile(int x, int y)
         {
             if (worldGrid == null)
@@ -63,49 +65,31 @@ namespace CozyWorldGeneration.Core.DualGrid
             if (tile == null)
                 return;
 
-            // Check if the 4 overlapping world positions have tiles (boolean check)
-            var bottomLeft = worldGrid.HasTileAt(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y);
-            var bottomRight = worldGrid.HasTileAt(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y);
-            var topLeft = worldGrid.HasTileAt(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y);
-            var topRight = worldGrid.HasTileAt(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y);
+            // Check THIS layer at THIS level
+            var bottomLeft =
+                worldGrid.GetTile(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y, level)?.SourceLayer ==
+                worldLayer;
+            var bottomRight =
+                worldGrid.GetTile(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y, level)?.SourceLayer ==
+                worldLayer;
+            var topLeft =
+                worldGrid.GetTile(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y, level)?.SourceLayer ==
+                worldLayer;
+            var topRight =
+                worldGrid.GetTile(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y, level)?.SourceLayer ==
+                worldLayer;
 
-            // Calculate configuration index using bit flags (0-15)
             tile.ConfigurationIndex = CalculateConfiguration(bottomLeft, bottomRight, topLeft, topRight);
 
-            // Find the dominant WorldLayer to determine which VisualLayer to use
-            var dominantWorldLayer = GetDominantWorldLayer(x, y);
-
-            // Get the corresponding VisualLayer using the delegate (set by GridManager)
-            if (GetVisualLayerForWorldLayer != null && dominantWorldLayer != null)
+            if (GetVisualLayerForWorldLayer != null && worldLayer != null)
             {
-                var visualLayer = GetVisualLayerForWorldLayer(dominantWorldLayer);
+                var visualLayer = GetVisualLayerForWorldLayer(worldLayer);
                 if (visualLayer != null) tile.SetVisualLayer(visualLayer);
             }
 
-            // Update the visual (mesh/prefab) if container is set
             if (TilesContainer != null) tile.UpdateVisual(TilesContainer, TileSize);
         }
 
-
-        /// <summary>
-        /// Gets the dominant WorldLayer from the 4 overlapping tiles.
-        /// </summary>
-        private WorldLayer GetDominantWorldLayer(int x, int y)
-        {
-            var overlappingTiles = new WorldTile[4]
-            {
-                worldGrid.GetTile(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y),
-                worldGrid.GetTile(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y),
-                worldGrid.GetTile(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y),
-                worldGrid.GetTile(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y)
-            };
-
-            foreach (var tile in overlappingTiles)
-                if (tile != null && tile.SourceLayer != null)
-                    return tile.SourceLayer;
-
-            return null;
-        }
 
         /// <summary>
         /// Calculates configuration index (0-15) based on which neighbors are filled.

@@ -34,6 +34,8 @@ namespace CozyWorldGeneration.Core.DualGrid
         /// </summary>
         public void UpdateVisual(Transform parent, float tileSize)
         {
+            Debug.Log($"[VisualTile] UpdateVisual - config: {ConfigurationIndex}, tileset: {selectedTileset?.name}");
+
             // Destroy old visual if it exists
             if (VisualInstance != null)
             {

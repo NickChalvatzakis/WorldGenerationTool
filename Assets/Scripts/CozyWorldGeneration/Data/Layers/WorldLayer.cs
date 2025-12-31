@@ -18,6 +18,7 @@ namespace CozyWorldGeneration.Data.Layers
         [SerializeField] private Texture2D previewTexture;
         [SerializeField] private Color layerColor = Color.white;
         [SerializeField] private int defaultLayerHeight = 0;
+        [SerializeField] private int layerLevel = 0;
         [SerializeField] private bool lockFromPaint = false;
 
         // Non-serialized UI state
@@ -59,6 +60,12 @@ namespace CozyWorldGeneration.Data.Layers
             set => defaultLayerHeight = value;
         }
 
+        public int LayerLevel
+        {
+            get => layerLevel;
+            set => layerLevel = value;
+        }
+
         public bool LockFromPaint
         {
             get => lockFromPaint;
@@ -76,12 +83,9 @@ namespace CozyWorldGeneration.Data.Layers
         /// </summary>
         public void InitializePreviewTexture(int width, int height)
         {
-            if (previewTexture == null || previewTexture.width != width || previewTexture.height != height)
-            {
-                previewTexture = new Texture2D(width, height, TextureFormat.RGBA32, false);
-                previewTexture.filterMode = FilterMode.Point;
-                ClearPreviewTexture();
-            }
+            previewTexture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            previewTexture.filterMode = FilterMode.Point;
+            ClearPreviewTexture();
         }
 
         /// <summary>
@@ -114,9 +118,6 @@ namespace CozyWorldGeneration.Data.Layers
             {
                 previewTexture.SetPixel(x, y, paint ? layerColor : Color.clear);
                 previewTexture.Apply();
-
-                // Raise event through centralized system
-                ToolEvents.RaisePixelPainted(this, x, y, paint);
             }
         }
 

@@ -1,68 +1,98 @@
-﻿using CozyWorldGeneration.Core.Enums;
-using CozyWorldGeneration.Data.Layers;
+﻿using CozyWorldGeneration.Data.Layers;
+using CozyWorldGeneration.Events;
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace CozyWorldGeneration.Core.DualGrid
 {
-    public class WorldGrid : Grid<WorldTile>
+    public class WorldGrid
     {
-        private VisualGrid visualGrid;
+        private Dictionary<Vector3Int, WorldTile> tiles = new(); // x, y, level
 
-        public WorldGrid(int width, int height) : base(width, height)
+        public int Width { get; private set; }
+        public int Height { get; private set; }
+
+        public WorldGrid(int width, int height)
         {
+            Width = width;
+            Height = height;
+        }
+
+        public void PlaceTile(int x, int y, int level, WorldLayer layer)
+        {
+            if (!IsValidPosition(x, y)) return;
+
+            var key = new Vector3Int(x, y, level);
+            tiles[key] = new WorldTile(x, y, layer);
+            ToolEvents.RaiseTileChanged(x, y);
+        }
+
+        public void RemoveTile(int x, int y, int level)
+        {
+            var key = new Vector3Int(x, y, level);
+            if (tiles.Remove(key))
+                ToolEvents.RaiseTileChanged(x, y);
+        }
+
+        public WorldTile GetTile(int x, int y, int level)
+        {
+            var key = new Vector3Int(x, y, level);
+            tiles.TryGetValue(key, out var tile);
+            return tile;
+        }
+
+        public bool HasTileAt(int x, int y, int level)
+        {
+            return GetTile(x, y, level) != null;
         }
 
         /// <summary>
-        /// Links this WorldGrid to a VisualGrid for automatic visual updates.
+        /// Gets all tiles at a position across all levels.
         /// </summary>
-        public void LinkVisualGrid(VisualGrid visualGrid)
+        public IEnumerable<WorldTile> GetAllTilesAt(int x, int y)
         {
-            this.visualGrid = visualGrid;
+            foreach (var kvp in tiles)
+                if (kvp.Key.x == x && kvp.Key.y == y)
+                    yield return kvp.Value;
         }
 
         /// <summary>
-        /// Sets a tile and notifies the VisualGrid to update affected visual tiles.
+        /// Gets the top-most tile at a position.
         /// </summary>
-        public override void SetTile(int x, int y, WorldTile tile)
+        public WorldTile GetTopTile(int x, int y)
         {
-            base.SetTile(x, y, tile);
+            WorldTile topTile = null;
+            var topLevel = int.MinValue;
 
-            // Notify affected visual tiles
-            if (visualGrid != null) NotifyVisualGridUpdate(x, y);
+            foreach (var kvp in tiles)
+                if (kvp.Key.x == x && kvp.Key.y == y && kvp.Key.z > topLevel)
+                {
+                    topLevel = kvp.Key.z;
+                    topTile = kvp.Value;
+                }
+
+            return topTile;
         }
 
-        public void PlaceTile(int x, int y, WorldLayer selectedLayer)
+        public bool IsValidPosition(int x, int y)
         {
-            var tile = new WorldTile(x, y, selectedLayer);
-            SetTile(x, y, tile);
+            return x >= 0 && x < Width && y >= 0 && y < Height;
         }
 
-        /// <summary>
-        /// Checks if a tile exists at a position (for visual grid calculations).
-        /// </summary>
-        public bool HasTileAt(int x, int y)
+        public bool IsValidPosition(Vector2Int pos)
         {
-            return GetTile(x, y) != null;
+            return IsValidPosition(pos.x, pos.y);
         }
 
-        /// <summary>
-        /// Notifies the VisualGrid that tiles around this position need updating.
-        /// A WorldTile at (x, y) affects the 4 VisualTiles that overlap it.
-        /// Using the same offset pattern as the reference implementation.
-        /// </summary>
-        private void NotifyVisualGridUpdate(int x, int y)
+        public IEnumerable<Vector3Int> GetAllPositions()
         {
-            // The 4 visual tiles affected by this world tile
-            // These are the positions where this world tile is one of the 4 neighbors
-            var affectedVisualTiles = new Vector2Int[]
-            {
-                new(x, y), // This world tile is bottom-left neighbor
-                new(x - 1, y), // This world tile is bottom-right neighbor
-                new(x, y - 1), // This world tile is top-left neighbor
-                new(x - 1, y - 1) // This world tile is top-right neighbor
-            };
+            return tiles.Keys;
+        }
 
-            foreach (var pos in affectedVisualTiles) visualGrid?.UpdateVisualTile(pos.x, pos.y);
+        public void Clear()
+        {
+            tiles.Clear();
+            ToolEvents.RaiseGridCleared();
         }
     }
 }

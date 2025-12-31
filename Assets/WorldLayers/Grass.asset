@@ -12,10 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2dd2ed271c0746c19e3dd496fb2232a7, type: 3}
   m_Name: Grass
   m_EditorClassIdentifier: Assembly-CSharp::CozyWorldGeneration.Data.Layers.WorldLayer
-  guid: 39b6b481-43f0-4fe0-8c96-975912df6dde
+  guid: 002947a2-57f2-4d8c-92a4-883bdd4741f3
   layerName: Grass
   isEnabled: 1
   previewTexture: {fileID: 0}
-  layerColor: {r: 0.27946717, g: 0.7830189, b: 0.12927197, a: 1}
+  layerColor: {r: 0.51790494, g: 0.8490566, b: 0.43654326, a: 1}
   defaultLayerHeight: 0
+  layerLevel: 0
   lockFromPaint: 0

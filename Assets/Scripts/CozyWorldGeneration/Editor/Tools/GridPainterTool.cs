@@ -153,17 +153,10 @@ namespace CozyWorldGeneration.Editor
 
         private void PaintTile(int x, int y)
         {
-            // Paint on the preview texture
             selectedLayer.PaintPixel(x, y, true);
 
-            // Create or update the world tile
-            gridManager.WorldGrid.PlaceTile(x, y, selectedLayer);
-
-            // Set the source layer for tracking
-
-            //TODO: remove this we already do this now from refactoring
-            var tile = gridManager.WorldGrid.GetTile(x, y);
-            if (tile != null) tile.SourceLayer = selectedLayer;
+            // Use the layer's level
+            gridManager.WorldGrid.PlaceTile(x, y, selectedLayer.LayerLevel, selectedLayer);
 
             EditorUtility.SetDirty(selectedLayer);
             SceneView.RepaintAll();
@@ -171,73 +164,25 @@ namespace CozyWorldGeneration.Editor
 
         private void EraseTile(int x, int y)
         {
-            // Get the tile to check if it belongs to the selected layer
-            var tile = gridManager.WorldGrid.GetTile(x, y);
+            var level = selectedLayer.LayerLevel;
+            var tile = gridManager.WorldGrid.GetTile(x, y, level);
 
-            if (tile != null && (selectedLayer == null || tile.SourceLayer == selectedLayer))
+            if (tile != null && tile.SourceLayer == selectedLayer)
             {
-                // Erase from preview texture
-                if (tile.SourceLayer != null)
-                {
-                    tile.SourceLayer.PaintPixel(x, y, false);
-                    EditorUtility.SetDirty(tile.SourceLayer);
-                }
+                tile.SourceLayer.PaintPixel(x, y, false);
+                EditorUtility.SetDirty(tile.SourceLayer);
 
-                // Remove from world grid
-                gridManager.WorldGrid.SetTile(x, y, null);
+                gridManager.WorldGrid.RemoveTile(x, y, level);
                 SceneView.RepaintAll();
             }
         }
 
-        // TODO: Add a property in debug whether i want to see that or not
         private void DrawGridPreview()
         {
             if (gridManager == null || gridManager.WorldGrid == null)
                 return;
 
             Handles.color = Color.green;
-
-            // Draw grid cells and tile type labels
-            for (var x = 0; x < gridManager.Width; x++)
-            for (var y = 0; y < gridManager.Height; y++)
-            {
-                var worldPos = gridManager.GridToWorldPosition(x, y);
-                var cellSize = Vector3.one * gridManager.TileSize;
-
-
-                // Draw tile if it exists
-                var tile = gridManager.WorldGrid.GetTile(x, y);
-                if (tile != null)
-                {
-                    // Color based on source layer
-                    var tileColor = tile.SourceLayer != null ? tile.SourceLayer.LayerColor : Color.white;
-                    tileColor.a = 0.5f;
-                    Handles.color = tileColor;
-                    Handles.DrawSolidRectangleWithOutline(
-                        new Vector3[]
-                        {
-                            worldPos + new Vector3(-0.5f, 0, -0.5f) * gridManager.TileSize,
-                            worldPos + new Vector3(0.5f, 0, -0.5f) * gridManager.TileSize,
-                            worldPos + new Vector3(0.5f, 0, 0.5f) * gridManager.TileSize,
-                            worldPos + new Vector3(-0.5f, 0, 0.5f) * gridManager.TileSize
-                        },
-                        tileColor,
-                        Color.clear
-                    );
-
-                    // Draw tile type label
-                    Handles.Label(
-                        worldPos + Vector3.up * 0.1f,
-                        tile.SourceLayer.name,
-                        new GUIStyle(EditorStyles.whiteBoldLabel)
-                        {
-                            fontSize = 10,
-                            alignment = TextAnchor.MiddleCenter,
-                            normal = { textColor = Color.black }
-                        }
-                    );
-                }
-            }
 
             // Highlight hovered cell
             var hoveredPos = GetGridPositionFromMouse(Event.current.mousePosition);
@@ -255,6 +200,52 @@ namespace CozyWorldGeneration.Editor
                         EditorStyles.helpBox
                     );
             }
+            //
+            // var debugConfigDrawTiles = gridManager.DrawDebugTiles;
+            //
+            // if (!debugConfigDrawTiles) return;
+            //
+            // // Draw grid cells and tile type labels
+            // for (var x = 0; x < gridManager.Width; x++)
+            // for (var y = 0; y < gridManager.Height; y++)
+            // {
+            //     var worldPos = gridManager.GridToWorldPosition(x, y);
+            //     var cellSize = Vector3.one * gridManager.TileSize;
+            //
+            //
+            //     // Draw tile if it exists
+            //     var tile = gridManager.WorldGrid.GetTile(x, y);
+            //     if (tile != null)
+            //     {
+            //         // Color based on source layer
+            //         var tileColor = tile.SourceLayer != null ? tile.SourceLayer.LayerColor : Color.white;
+            //         tileColor.a = 0.5f;
+            //         Handles.color = tileColor;
+            //         Handles.DrawSolidRectangleWithOutline(
+            //             new Vector3[]
+            //             {
+            //                 worldPos + new Vector3(-0.5f, 0, -0.5f) * gridManager.TileSize,
+            //                 worldPos + new Vector3(0.5f, 0, -0.5f) * gridManager.TileSize,
+            //                 worldPos + new Vector3(0.5f, 0, 0.5f) * gridManager.TileSize,
+            //                 worldPos + new Vector3(-0.5f, 0, 0.5f) * gridManager.TileSize
+            //             },
+            //             tileColor,
+            //             Color.clear
+            //         );
+            //
+            //         // Draw tile type label
+            //         Handles.Label(
+            //             worldPos + Vector3.up * 0.1f,
+            //             tile.SourceLayer.name,
+            //             new GUIStyle(EditorStyles.whiteBoldLabel)
+            //             {
+            //                 fontSize = 10,
+            //                 alignment = TextAnchor.MiddleCenter,
+            //                 normal = { textColor = Color.black }
+            //             }
+            //         );
+            //     }
+            // }
         }
     }
 }

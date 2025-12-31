@@ -28,12 +28,6 @@ namespace CozyWorldGeneration.Events
         /// </summary>
         public static event Action<WorldLayer> OnLayerCleared;
 
-        /// <summary>
-        /// Fired when a pixel is painted or erased on a layer.
-        /// Parameters: layer, x, y, isPainted
-        /// </summary>
-        public static event Action<WorldLayer, int, int, bool> OnPixelPainted;
-
         #endregion
 
         #region Grid Events
@@ -49,6 +43,8 @@ namespace CozyWorldGeneration.Events
         /// Parameters: x, y
         /// </summary>
         public static event Action<int, int> OnTileRemoved;
+
+        public static event Action<int, int> OnTileChanged;
 
         /// <summary>
         /// Fired when the grid is cleared.
@@ -100,10 +96,6 @@ namespace CozyWorldGeneration.Events
             OnLayerCleared?.Invoke(layer);
         }
 
-        public static void RaisePixelPainted(WorldLayer layer, int x, int y, bool isPainted)
-        {
-            OnPixelPainted?.Invoke(layer, x, y, isPainted);
-        }
 
         // Grid Events
         public static void RaiseTilePlaced(int x, int y, TileType tileType, WorldLayer sourceLayer)
@@ -114,6 +106,11 @@ namespace CozyWorldGeneration.Events
         public static void RaiseTileRemoved(int x, int y)
         {
             OnTileRemoved?.Invoke(x, y);
+        }
+
+        public static void RaiseTileChanged(int x, int y)
+        {
+            OnTileChanged?.Invoke(x, y);
         }
 
         public static void RaiseGridCleared()
@@ -155,7 +152,6 @@ namespace CozyWorldGeneration.Events
             OnLayerAdded = null;
             OnLayerRemoved = null;
             OnLayerCleared = null;
-            OnPixelPainted = null;
 
             // Grid Events
             OnTilePlaced = null;
