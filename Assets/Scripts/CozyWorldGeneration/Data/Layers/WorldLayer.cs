@@ -15,13 +15,15 @@ namespace CozyWorldGeneration.Data.Layers
         [SerializeField] private string guid = Guid.NewGuid().ToString();
         [SerializeField] private string layerName = "New Layer";
         [SerializeField] private bool isEnabled = true;
-        [SerializeField] private Texture2D previewTexture;
+        [NonSerialized] private Texture2D previewTexture;
         [SerializeField] private Color layerColor = Color.white;
         [SerializeField] private int layerLevel = 0;
         [SerializeField] private bool lockFromPaint = false;
 
         // Non-serialized UI state
         [NonSerialized] public bool foldoutState = false;
+
+        [SerializeField] [HideInInspector] private byte[] textureData;
 
         public string GUID
         {
@@ -43,9 +45,45 @@ namespace CozyWorldGeneration.Data.Layers
 
         public Texture2D PreviewTexture
         {
-            get => previewTexture;
-            set => previewTexture = value;
+            get
+            {
+                // Lazy initialization - rebuild from serialized data if needed
+                if (previewTexture == null && textureData != null && textureData.Length > 0) RebuildTextureFromData();
+                return previewTexture;
+            }
         }
+
+        public void RebuildTextureFromData()
+        {
+            if (textureData == null || textureData.Length == 0) return;
+
+            previewTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            previewTexture.filterMode = FilterMode.Point;
+
+            if (previewTexture.LoadImage(textureData))
+                Debug.Log(
+                    $"[WorldLayer] Rebuilt texture for {layerName} ({previewTexture.width}x{previewTexture.height})");
+            else
+                Debug.LogWarning($"[WorldLayer] Failed to rebuild texture for {layerName}");
+        }
+
+        public void ForceRebuildTexture(int fallbackWidth = 0, int fallbackHeight = 0)
+        {
+            previewTexture = null;
+
+            if (textureData != null && textureData.Length > 0)
+                // Has serialized data - rebuild from it
+                RebuildTextureFromData();
+            else if (previewTexture != null && previewTexture.width > 0 && previewTexture.height > 0)
+                // Has stored dimensions - create empty texture
+                InitializePreviewTexture(previewTexture.width, previewTexture.height);
+            else if (fallbackWidth > 0 && fallbackHeight > 0)
+                // Use fallback dimensions from GridManager
+                InitializePreviewTexture(fallbackWidth, fallbackHeight);
+            else
+                Debug.LogWarning($"[WorldLayer] Cannot rebuild texture for '{layerName}' - no dimensions available");
+        }
+
 
         public Color LayerColor
         {
@@ -70,6 +108,7 @@ namespace CozyWorldGeneration.Data.Layers
         {
             // Ensure GUID exists
             if (string.IsNullOrEmpty(guid)) guid = Guid.NewGuid().ToString();
+            if (textureData != null && textureData.Length > 0) previewTexture.LoadImage(textureData);
         }
 
         /// <summary>
@@ -112,6 +151,7 @@ namespace CozyWorldGeneration.Data.Layers
             {
                 previewTexture.SetPixel(x, y, paint ? layerColor : Color.clear);
                 previewTexture.Apply();
+                textureData = previewTexture.EncodeToPNG();
             }
         }
 
@@ -123,10 +163,17 @@ namespace CozyWorldGeneration.Data.Layers
             if (previewTexture != null && x >= 0 && x < previewTexture.width && y >= 0 && y < previewTexture.height)
             {
                 var pixelColor = previewTexture.GetPixel(x, y);
-                return pixelColor.a > 0.5f; // Consider painted if alpha > 0.5
+                return pixelColor.a > 0.5f;
             }
 
             return false;
         }
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            if (textureData != null && textureData.Length > 0) RebuildTextureFromData();
+        }
+#endif
     }
 }

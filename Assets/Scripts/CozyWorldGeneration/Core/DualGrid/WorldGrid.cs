@@ -9,9 +9,10 @@ namespace CozyWorldGeneration.Core.DualGrid
     {
         // Key is (x, y, level)
         private Dictionary<Vector3Int, WorldTile> tiles = new();
-        
+
         public int Width { get; private set; }
         public int Height { get; private set; }
+        public bool SuppressEvents { get; set; } = false;
 
         public WorldGrid(int width, int height)
         {
@@ -22,16 +23,18 @@ namespace CozyWorldGeneration.Core.DualGrid
         public void PlaceTile(int x, int y, WorldLayer layer)
         {
             if (!IsValidPosition(x, y) || layer == null) return;
-            
+
             var key = new Vector3Int(x, y, layer.LayerLevel);
             tiles[key] = new WorldTile(x, y, layer);
             ToolEvents.RaiseTileChanged(x, y);
+            if (!SuppressEvents)
+                ToolEvents.RaiseTileChanged(x, y);
         }
 
         public void RemoveTile(int x, int y, int level)
         {
             var key = new Vector3Int(x, y, level);
-            if (tiles.Remove(key))
+            if (tiles.Remove(key) && !SuppressEvents)
                 ToolEvents.RaiseTileChanged(x, y);
         }
 
@@ -74,7 +77,8 @@ namespace CozyWorldGeneration.Core.DualGrid
         public void Clear()
         {
             tiles.Clear();
-            ToolEvents.RaiseGridCleared();
+            if (!SuppressEvents)
+                ToolEvents.RaiseGridCleared();
         }
     }
 }

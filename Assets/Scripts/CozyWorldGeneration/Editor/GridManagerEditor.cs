@@ -18,6 +18,62 @@ namespace CozyWorldGeneration.Editor
         private Foldout worldLayersFoldout;
         private Foldout visualLayersFoldout;
 
+
+        private void OnEnable()
+        {
+            gridManager = (GridManager)target;
+            Undo.undoRedoPerformed += OnUndoRedoPerformed;
+        }
+
+        private void OnDisable()
+        {
+            Undo.undoRedoPerformed -= OnUndoRedoPerformed;
+        }
+
+        private void OnUndoRedoPerformed()
+        {
+            if (gridManager == null || gridManager.WorldGrid == null)
+                return;
+
+            // Force all layers to rebuild textures first
+            if (gridManager.WorldLayerCollection?.Layers != null)
+                foreach (var layer in gridManager.WorldLayerCollection.Layers)
+                    // Pass grid dimensions as fallback
+                    layer?.ForceRebuildTexture(gridManager.Width, gridManager.Height);
+
+            RebuildWorldGridFromLayers();
+            SceneView.RepaintAll();
+        }
+
+
+        private void RebuildWorldGridFromLayers()
+        {
+            if (gridManager.WorldLayerCollection == null) return;
+
+            gridManager.WorldGrid.SuppressEvents = true;
+            gridManager.WorldGrid.Clear();
+
+            foreach (var layer in gridManager.WorldLayerCollection.Layers)
+            {
+                if (layer == null) continue;
+
+                // Skip layers with no texture
+                if (layer.PreviewTexture == null)
+                {
+                    Debug.LogWarning($"[GridManager] Layer '{layer.LayerName}' has no PreviewTexture, skipping.");
+                    continue;
+                }
+
+                for (var x = 0; x < layer.PreviewTexture.width; x++)
+                for (var y = 0; y < layer.PreviewTexture.height; y++)
+                    if (layer.IsPixelPainted(x, y))
+                        gridManager.WorldGrid.PlaceTile(x, y, layer);
+            }
+
+            gridManager.WorldGrid.SuppressEvents = false;
+            gridManager.RefreshAlLVisualGrids();
+        }
+
         public override VisualElement CreateInspectorGUI()
         {
             gridManager = target as GridManager;

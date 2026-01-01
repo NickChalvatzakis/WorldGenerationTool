@@ -18,6 +18,9 @@ namespace CozyWorldGeneration.Editor
         private WorldLayer selectedLayer;
         private bool isPainting = false;
         private bool isErasing = false;
+        private int undoGroup;
+        private HashSet<WorldLayer> modifiedLayers = new();
+
 
         private int brushSize = 1;
 
@@ -27,6 +30,53 @@ namespace CozyWorldGeneration.Editor
             set => brushSize = Mathf.Max(1, value);
         }
 
+        public override void OnActivated()
+        {
+            base.OnActivated();
+            Undo.undoRedoPerformed += OnUndoRedoPerformed;
+        }
+
+        public override void OnWillBeDeactivated()
+        {
+            base.OnWillBeDeactivated();
+            Undo.undoRedoPerformed -= OnUndoRedoPerformed;
+        }
+
+        private void OnUndoRedoPerformed()
+        {
+            if (gridManager == null)
+                return;
+
+            if (gridManager.WorldLayerCollection?.Layers != null)
+                foreach (var layer in gridManager.WorldLayerCollection.Layers)
+                    layer?.ForceRebuildTexture(gridManager.Width, gridManager.Height);
+
+            if (gridManager.WorldGrid != null) RebuildWorldGridFromLayers();
+
+            SceneView.RepaintAll();
+        }
+
+
+        private void RebuildWorldGridFromLayers()
+        {
+            if (gridManager.WorldLayerCollection == null) return;
+
+            gridManager.WorldGrid.SuppressEvents = true;
+            gridManager.WorldGrid.Clear();
+
+            foreach (var layer in gridManager.WorldLayerCollection.Layers)
+            {
+                if (layer == null || layer.PreviewTexture == null) continue;
+
+                for (var x = 0; x < layer.PreviewTexture.width; x++)
+                for (var y = 0; y < layer.PreviewTexture.height; y++)
+                    if (layer.IsPixelPainted(x, y))
+                        gridManager.WorldGrid.PlaceTile(x, y, layer);
+            }
+
+            gridManager.WorldGrid.SuppressEvents = false;
+            gridManager.RefreshAlLVisualGrids();
+        }
 
         private GUIContent cachedToolbarIcon;
 
@@ -42,6 +92,30 @@ namespace CozyWorldGeneration.Editor
                 return cachedToolbarIcon;
             }
         }
+
+        private void BeginPaintOperation(string operationName)
+        {
+            Undo.SetCurrentGroupName(operationName);
+            undoGroup = Undo.GetCurrentGroup();
+            modifiedLayers.Clear();
+        }
+
+        private void EndPaintOperation()
+        {
+            if (modifiedLayers.Count > 0) Undo.CollapseUndoOperations(undoGroup);
+            modifiedLayers.Clear();
+        }
+
+
+        private void RecordLayerUndo(WorldLayer layer)
+        {
+            if (layer != null && !modifiedLayers.Contains(layer))
+            {
+                Undo.RecordObject(layer, "Paint Tiles");
+                modifiedLayers.Add(layer);
+            }
+        }
+
 
         public override void OnToolGUI(EditorWindow window)
         {
@@ -94,6 +168,7 @@ namespace CozyWorldGeneration.Editor
                     if (e.button == 0) // Left click
                     {
                         isPainting = true;
+                        BeginPaintOperation("Paint Tiles");
                         PaintAtMousePosition(e);
                         e.Use();
                         GUIUtility.hotControl = controlID;
@@ -101,6 +176,7 @@ namespace CozyWorldGeneration.Editor
                     else if (e.button == 1) // Right click
                     {
                         isErasing = true;
+                        BeginPaintOperation("Erase Tiles");
                         EraseAtMousePosition(e);
                         e.Use();
                         GUIUtility.hotControl = controlID;
@@ -111,11 +187,13 @@ namespace CozyWorldGeneration.Editor
                 case EventType.MouseDrag:
                     if (isPainting && e.button == 0)
                     {
+                        BeginPaintOperation("Paint Tiles");
                         PaintAtMousePosition(e);
                         e.Use();
                     }
                     else if (isErasing && e.button == 1)
                     {
+                        BeginPaintOperation("Erase Tiles");
                         EraseAtMousePosition(e);
                         e.Use();
                     }
@@ -126,11 +204,13 @@ namespace CozyWorldGeneration.Editor
                     if (e.button == 0)
                     {
                         isPainting = false;
+                        EndPaintOperation();
                         GUIUtility.hotControl = 0;
                     }
                     else if (e.button == 1)
                     {
                         isErasing = false;
+                        EndPaintOperation();
                         GUIUtility.hotControl = 0;
                     }
 
@@ -201,9 +281,10 @@ namespace CozyWorldGeneration.Editor
 
         private void PaintTile(int x, int y)
         {
+            RecordLayerUndo(selectedLayer);
+
             selectedLayer.PaintPixel(x, y, true);
             gridManager.WorldGrid.PlaceTile(x, y, selectedLayer);
-
             EditorUtility.SetDirty(selectedLayer);
             SceneView.RepaintAll();
         }
@@ -215,6 +296,8 @@ namespace CozyWorldGeneration.Editor
 
             if (tile != null && tile.SourceLayer == selectedLayer)
             {
+                RecordLayerUndo(selectedLayer);
+
                 selectedLayer.PaintPixel(x, y, false);
                 EditorUtility.SetDirty(selectedLayer);
 

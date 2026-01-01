@@ -371,5 +371,17 @@ namespace CozyWorldGeneration.Core
             InitializeGrids();
         }
 #endif
+        public void RefreshAlLVisualGrids()
+        {
+            if (visualGrids == null) return;
+
+            foreach (var kvp in visualGrids)
+            {
+                var visualGrid = kvp.Value;
+                for (var x = 0; x < visualGrid.Width; x++)
+                for (var y = 0; y < visualGrid.Height; y++)
+                    visualGrid.UpdateVisualTile(x, y);
+            }
+        }
     }
 }
