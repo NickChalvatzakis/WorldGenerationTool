@@ -18,6 +18,12 @@ namespace CozyWorldGeneration.Editor
         private WorldLayer selectedLayer;
         private VisualElement root;
         private ScrollView layerScrollView;
+        private int brushSize = 1;
+
+        public int GetBrushSize()
+        {
+            return brushSize;
+        }
 
         public override void OnCreated()
         {
@@ -71,6 +77,31 @@ namespace CozyWorldGeneration.Editor
             refreshButton.style.marginBottom = 10;
             root.Add(refreshButton);
 
+            // Brush Size slider — ADD THIS SECTION
+            var brushSizeContainer = new VisualElement();
+            brushSizeContainer.style.marginBottom = 10;
+
+            var brushSizeLabel = new Label($"Brush Size: {brushSize}");
+            brushSizeLabel.style.color = Color.white;
+            brushSizeLabel.style.marginBottom = 3;
+
+            var brushSizeSlider = new SliderInt(1, 10) { value = brushSize };
+            brushSizeSlider.RegisterValueChangedCallback(evt =>
+            {
+                brushSize = evt.newValue;
+                brushSizeLabel.text = $"Brush Size: {brushSize}";
+                SceneView.RepaintAll();
+            });
+
+            var brushSizeHint = new Label("(Shift + Scroll to adjust)");
+            brushSizeHint.style.fontSize = 9;
+            brushSizeHint.style.color = new Color(0.5f, 0.5f, 0.5f);
+
+            brushSizeContainer.Add(brushSizeLabel);
+            brushSizeContainer.Add(brushSizeSlider);
+            brushSizeContainer.Add(brushSizeHint);
+            root.Add(brushSizeContainer);
+
             // Scroll view for layers
             layerScrollView = new ScrollView();
             layerScrollView.style.maxHeight = 400;
@@ -80,6 +111,7 @@ namespace CozyWorldGeneration.Editor
 
             return root;
         }
+
 
         /// <summary>
         /// Finds the active GridManager in the scene and updates the UI.

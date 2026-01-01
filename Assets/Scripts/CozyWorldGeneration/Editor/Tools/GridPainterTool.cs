@@ -1,4 +1,5 @@
-﻿using CozyWorldGeneration.Core;
+﻿using System.Collections.Generic;
+using CozyWorldGeneration.Core;
 using CozyWorldGeneration.Data.Layers;
 using UnityEditor;
 using UnityEditor.EditorTools;
@@ -17,6 +18,15 @@ namespace CozyWorldGeneration.Editor
         private WorldLayer selectedLayer;
         private bool isPainting = false;
         private bool isErasing = false;
+
+        private int brushSize = 1;
+
+        public int BrushSize
+        {
+            get => brushSize;
+            set => brushSize = Mathf.Max(1, value);
+        }
+
 
         private GUIContent cachedToolbarIcon;
 
@@ -46,6 +56,7 @@ namespace CozyWorldGeneration.Editor
                 {
                     gridManager = painterOverlay.GetActiveGridManager();
                     selectedLayer = painterOverlay.GetSelectedLayer();
+                    brushSize = painterOverlay.GetBrushSize();
                 }
             }
 
@@ -62,6 +73,20 @@ namespace CozyWorldGeneration.Editor
 
             // Allow camera controls (Alt + mouse) to pass through
             if (e.alt) return;
+
+            if (e.type == EventType.ScrollWheel && e.control)
+            {
+                brushSize = Mathf.Max(1, brushSize - (int)Mathf.Sign(e.delta.y));
+                e.Use();
+                SceneView.RepaintAll();
+                return;
+            }
+
+            // TODO: change what layer you control / the layer level of the world grid
+            // if (e.type == EventType.ScrollWheel && e.shift && e.control)
+            // {
+            //     gridManager.WorldLayerCollection.Get
+            // }
 
             switch (e.type)
             {
@@ -117,13 +142,35 @@ namespace CozyWorldGeneration.Editor
             }
         }
 
+        /// <summary>
+        /// Gets all grid positions within the brush radius (spherical/circular)
+        /// </summary>
+        private IEnumerable<Vector2Int> GetBrushPositions(Vector2Int center)
+        {
+            var radius = brushSize - 1;
+            var radiusSq = (radius + 0.5f) * (radius + 0.5f);
+
+            for (var x = -radius; x <= radius; x++)
+            for (var y = -radius; y <= radius; y++)
+                // Circular check
+                if (x * x + y * y <= radiusSq)
+                {
+                    var pos = new Vector2Int(center.x + x, center.y + y);
+                    if (gridManager.WorldGrid.IsValidPosition(pos))
+                        yield return pos;
+                }
+        }
+
+
         private void PaintAtMousePosition(Event e)
         {
             if (selectedLayer == null || !selectedLayer.IsEnabled || selectedLayer.LockFromPaint)
                 return;
 
             var gridPos = GetGridPositionFromMouse(e.mousePosition);
-            if (gridPos.HasValue) PaintTile(gridPos.Value.x, gridPos.Value.y);
+            if (!gridPos.HasValue) return;
+            foreach (var pos in GetBrushPositions(gridPos.Value))
+                PaintTile(pos.x, pos.y);
         }
 
         private void EraseAtMousePosition(Event e)
@@ -132,7 +179,8 @@ namespace CozyWorldGeneration.Editor
                 return;
 
             var gridPos = GetGridPositionFromMouse(e.mousePosition);
-            if (gridPos.HasValue) EraseTile(gridPos.Value.x, gridPos.Value.y);
+            if (!gridPos.HasValue) return;
+            foreach (var pos in GetBrushPositions(gridPos.Value)) EraseTile(pos.x, pos.y);
         }
 
         private Vector2Int? GetGridPositionFromMouse(Vector2 mousePosition)
@@ -162,15 +210,14 @@ namespace CozyWorldGeneration.Editor
 
         private void EraseTile(int x, int y)
         {
-            int level = selectedLayer.LayerLevel;
+            var level = selectedLayer.LayerLevel;
             var tile = gridManager.WorldGrid.GetTile(x, y, level);
-    
-            // Only erase if this tile belongs to the selected layer
+
             if (tile != null && tile.SourceLayer == selectedLayer)
             {
                 selectedLayer.PaintPixel(x, y, false);
                 EditorUtility.SetDirty(selectedLayer);
-        
+
                 gridManager.WorldGrid.RemoveTile(x, y, level);
                 SceneView.RepaintAll();
             }
@@ -188,17 +235,23 @@ namespace CozyWorldGeneration.Editor
             var hoveredPos = GetGridPositionFromMouse(Event.current.mousePosition);
             if (hoveredPos.HasValue)
             {
-                var worldPos = gridManager.GridToWorldPosition(hoveredPos.Value.x, hoveredPos.Value.y);
                 Handles.color = isPainting ? Color.green : isErasing ? Color.red : Color.yellow;
-                Handles.DrawWireCube(worldPos, Vector3.one * gridManager.TileSize * 1.1f);
+                foreach (var pos in GetBrushPositions(hoveredPos.Value))
+                {
+                    var worldPos = gridManager.GridToWorldPosition(pos.x, pos.y);
+                    Handles.DrawWireCube(worldPos, Vector3.one * gridManager.TileSize * 0.95f);
+                }
 
                 // Show what will be painted
                 if (selectedLayer != null && !isPainting && !isErasing)
+                {
+                    var centerWorldPos = gridManager.GridToWorldPosition(hoveredPos.Value.x, hoveredPos.Value.y);
                     Handles.Label(
-                        worldPos + Vector3.up * 0.5f,
+                        centerWorldPos + Vector3.up * 0.5f,
                         $"Paint: {selectedLayer.LayerName}",
                         EditorStyles.helpBox
                     );
+                }
             }
             //
             // var debugConfigDrawTiles = gridManager.DrawDebugTiles;
