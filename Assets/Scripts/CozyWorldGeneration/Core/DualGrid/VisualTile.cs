@@ -34,8 +34,6 @@ namespace CozyWorldGeneration.Core.DualGrid
         /// </summary>
         public void UpdateVisual(Transform parent, float tileSize)
         {
-            Debug.Log($"[VisualTile] UpdateVisual - config: {ConfigurationIndex}, tileset: {selectedTileset?.name}");
-
             // Destroy old visual if it exists
             if (VisualInstance != null)
             {
@@ -61,10 +59,16 @@ namespace CozyWorldGeneration.Core.DualGrid
             VisualInstance = new GameObject($"VisualTile_{GridPosition.x}_{GridPosition.y}");
             VisualInstance.transform.SetParent(layerContainer);
 
+            // Calculate Y position: base level + visual offset
+            var layerLevel = visualLayer?.AssignedWorldLayer?.LayerLevel ?? 0;
+            var visualHeight = visualLayer?.VisualHeight ?? 0f;
+            var levelHeight = 1f; // Base height per level (could be configurable)
+            var finalY = layerLevel * levelHeight + visualHeight;
+
             // Position and rotate
             var worldPos = new Vector3(
                 (GridPosition.x + 1.0f) * tileSize,
-                visualLayer != null ? visualLayer.DefaultLayerHeight : 0,
+                finalY,
                 (GridPosition.y + 1.0f) * tileSize
             );
             VisualInstance.transform.position = worldPos;

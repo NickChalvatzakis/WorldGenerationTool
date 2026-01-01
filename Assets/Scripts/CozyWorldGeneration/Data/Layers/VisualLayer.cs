@@ -18,7 +18,7 @@ namespace CozyWorldGeneration.Data.Layers
         private List<WeightedTileset> tilesets = new();
 
 
-        [Header("Settings")] [SerializeField] private int defaultLayerHeight = 0;
+        [Header("Settings")] [SerializeField] private float visualHeight = 0;
 
         [System.NonSerialized] public bool foldoutState = false;
 
@@ -49,10 +49,10 @@ namespace CozyWorldGeneration.Data.Layers
         public List<WeightedTileset> Tilesets => tilesets ??= new List<WeightedTileset>();
 
 
-        public int DefaultLayerHeight
+        public float VisualHeight
         {
-            get => defaultLayerHeight;
-            set => defaultLayerHeight = value;
+            get => visualHeight;
+            set => visualHeight = value;
         }
 
         private void OnEnable()

@@ -1,4 +1,5 @@
-﻿using CozyWorldGeneration.Core;
+﻿using System.Collections.Generic;
+using CozyWorldGeneration.Core;
 using CozyWorldGeneration.Data.Layers;
 using CozyWorldGeneration.Data.Tilesets;
 using UnityEditor;
@@ -362,10 +363,10 @@ namespace CozyWorldGeneration.Editor
                 EditorUtility.SetDirty(layer);
             });
 
-            var heightField = new IntegerField("Height") { value = layer.DefaultLayerHeight };
+            var heightField = new FloatField("Height") { value = layer.VisualHeight };
             heightField.RegisterValueChangedCallback(evt =>
             {
-                layer.DefaultLayerHeight = evt.newValue;
+                layer.VisualHeight = evt.newValue;
                 EditorUtility.SetDirty(layer);
             });
 
@@ -533,7 +534,7 @@ namespace CozyWorldGeneration.Editor
         {
             if (gridManager.WorldGrid == null) return;
 
-            var tilesToRemove = new System.Collections.Generic.List<Vector3Int>();
+            var tilesToRemove = new List<Vector3Int>();
 
             foreach (var position in gridManager.WorldGrid.GetAllPositions())
             {
@@ -542,8 +543,8 @@ namespace CozyWorldGeneration.Editor
                     tilesToRemove.Add(position);
             }
 
-            foreach (var position in tilesToRemove)
-                gridManager.WorldGrid.RemoveTile(position.x, position.y, position.z);
+            foreach (var pos in tilesToRemove)
+                gridManager.WorldGrid.RemoveTile(pos.x, pos.y, pos.z);
 
             Debug.Log($"[Editor] Cleared {tilesToRemove.Count} tiles from grid");
         }

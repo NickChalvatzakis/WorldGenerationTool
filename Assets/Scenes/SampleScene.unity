@@ -119,37 +119,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &175325076
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 175325077}
-  m_Layer: 0
-  m_Name: Visual Tiles
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &175325077
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 175325076}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 408128536}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -316,8 +285,7 @@ Transform:
   m_LocalPosition: {x: -0, y: 0, z: -0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 175325077}
+  m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &408128537
@@ -341,12 +309,14 @@ MonoBehaviour:
     layers:
     - {fileID: 11400000, guid: 4483eebe70ea0a0499b1273c0c14271b, type: 2}
     - {fileID: 11400000, guid: daac8df6ac95bfe418399204a7bf0cfd, type: 2}
+    - {fileID: 11400000, guid: cac16d181037dee4d96f286a173ac764, type: 2}
   visualLayerCollection:
     guid: 4f043d9c-93e6-477b-ae5f-b7f46fc9b325
     collectionName: Visual Layers
     layers:
     - {fileID: 11400000, guid: 6dd670d0f541148489397ecc5ded0ee7, type: 2}
     - {fileID: 11400000, guid: 2fe9b7e7f74653c4db4985a867f64098, type: 2}
+    - {fileID: 11400000, guid: c61cf3823a6c0334eb29869d2f404c50, type: 2}
   drawGizmos: 1
   drawWorldGrid: 1
   drawVisualGrid: 1

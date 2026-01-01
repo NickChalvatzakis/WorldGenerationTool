@@ -7,8 +7,9 @@ namespace CozyWorldGeneration.Core.DualGrid
 {
     public class WorldGrid
     {
-        private Dictionary<Vector3Int, WorldTile> tiles = new(); // x, y, level
-
+        // Key is (x, y, level)
+        private Dictionary<Vector3Int, WorldTile> tiles = new();
+        
         public int Width { get; private set; }
         public int Height { get; private set; }
 
@@ -18,11 +19,11 @@ namespace CozyWorldGeneration.Core.DualGrid
             Height = height;
         }
 
-        public void PlaceTile(int x, int y, int level, WorldLayer layer)
+        public void PlaceTile(int x, int y, WorldLayer layer)
         {
-            if (!IsValidPosition(x, y)) return;
-
-            var key = new Vector3Int(x, y, level);
+            if (!IsValidPosition(x, y) || layer == null) return;
+            
+            var key = new Vector3Int(x, y, layer.LayerLevel);
             tiles[key] = new WorldTile(x, y, layer);
             ToolEvents.RaiseTileChanged(x, y);
         }
@@ -47,31 +48,17 @@ namespace CozyWorldGeneration.Core.DualGrid
         }
 
         /// <summary>
-        /// Gets all tiles at a position across all levels.
+        /// Checks if a specific layer has a tile at this position.
         /// </summary>
-        public IEnumerable<WorldTile> GetAllTilesAt(int x, int y)
+        public bool HasTileForLayer(int x, int y, WorldLayer layer)
         {
-            foreach (var kvp in tiles)
-                if (kvp.Key.x == x && kvp.Key.y == y)
-                    yield return kvp.Value;
+            var tile = GetTile(x, y, layer.LayerLevel);
+            return tile != null && tile.SourceLayer == layer;
         }
 
-        /// <summary>
-        /// Gets the top-most tile at a position.
-        /// </summary>
-        public WorldTile GetTopTile(int x, int y)
+        public IEnumerable<Vector3Int> GetAllPositions()
         {
-            WorldTile topTile = null;
-            var topLevel = int.MinValue;
-
-            foreach (var kvp in tiles)
-                if (kvp.Key.x == x && kvp.Key.y == y && kvp.Key.z > topLevel)
-                {
-                    topLevel = kvp.Key.z;
-                    topTile = kvp.Value;
-                }
-
-            return topTile;
+            return tiles.Keys;
         }
 
         public bool IsValidPosition(int x, int y)
@@ -82,11 +69,6 @@ namespace CozyWorldGeneration.Core.DualGrid
         public bool IsValidPosition(Vector2Int pos)
         {
             return IsValidPosition(pos.x, pos.y);
-        }
-
-        public IEnumerable<Vector3Int> GetAllPositions()
-        {
-            return tiles.Keys;
         }
 
         public void Clear()

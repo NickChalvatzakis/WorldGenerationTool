@@ -17,7 +17,6 @@ namespace CozyWorldGeneration.Data.Layers
         [SerializeField] private bool isEnabled = true;
         [SerializeField] private Texture2D previewTexture;
         [SerializeField] private Color layerColor = Color.white;
-        [SerializeField] private int defaultLayerHeight = 0;
         [SerializeField] private int layerLevel = 0;
         [SerializeField] private bool lockFromPaint = false;
 
@@ -54,11 +53,6 @@ namespace CozyWorldGeneration.Data.Layers
             set => layerColor = value;
         }
 
-        public int DefaultLayerHeight
-        {
-            get => defaultLayerHeight;
-            set => defaultLayerHeight = value;
-        }
 
         public int LayerLevel
         {

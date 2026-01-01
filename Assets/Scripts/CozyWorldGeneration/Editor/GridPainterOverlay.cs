@@ -259,8 +259,6 @@ namespace CozyWorldGeneration.Editor
             if (EditorUtility.DisplayDialog("Clear Layer",
                     $"Clear all painted data from '{layer.LayerName}'?", "Yes", "No"))
             {
-                Debug.Log($"[Overlay] Starting clear for layer: {layer.LayerName}");
-
                 layer.ClearPreviewTexture();
                 EditorUtility.SetDirty(layer);
 
@@ -268,8 +266,6 @@ namespace CozyWorldGeneration.Editor
 
                 if (activeGridManager != null && activeGridManager.WorldGrid != null)
                 {
-                    Debug.Log($"[Overlay] GridManager found, clearing tiles from grid");
-
                     var tilesToRemove = new List<Vector3Int>();
 
                     foreach (var position in activeGridManager.WorldGrid.GetAllPositions())
@@ -279,15 +275,10 @@ namespace CozyWorldGeneration.Editor
                             tilesToRemove.Add(position);
                     }
 
-                    foreach (var position in tilesToRemove)
-                        activeGridManager.WorldGrid.RemoveTile(position.x, position.y, position.z);
+                    foreach (var pos in tilesToRemove)
+                        activeGridManager.WorldGrid.RemoveTile(pos.x, pos.y, pos.z);
 
-                    Debug.Log(
-                        $"[Overlay] Cleared layer: {layer.LayerName} - Removed {tilesToRemove.Count} tiles from grid");
-                }
-                else
-                {
-                    Debug.LogWarning($"[Overlay] GridManager is null or WorldGrid is null!");
+                    Debug.Log($"[Overlay] Cleared layer: {layer.LayerName} - Removed {tilesToRemove.Count} tiles");
                 }
 
                 SceneView.RepaintAll();

@@ -65,19 +65,15 @@ namespace CozyWorldGeneration.Core.DualGrid
             if (tile == null)
                 return;
 
-            // Check THIS layer at THIS level
+            var level = worldLayer.LayerLevel;
+
             var bottomLeft =
-                worldGrid.GetTile(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y, level)?.SourceLayer ==
-                worldLayer;
+                worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y, worldLayer);
             var bottomRight =
-                worldGrid.GetTile(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y, level)?.SourceLayer ==
-                worldLayer;
-            var topLeft =
-                worldGrid.GetTile(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y, level)?.SourceLayer ==
-                worldLayer;
+                worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y, worldLayer);
+            var topLeft = worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y, worldLayer);
             var topRight =
-                worldGrid.GetTile(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y, level)?.SourceLayer ==
-                worldLayer;
+                worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y, worldLayer);
 
             tile.ConfigurationIndex = CalculateConfiguration(bottomLeft, bottomRight, topLeft, topRight);
 

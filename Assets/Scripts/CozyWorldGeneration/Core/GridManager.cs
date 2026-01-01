@@ -113,7 +113,7 @@ namespace CozyWorldGeneration.Core
 
             // Auto-offset based on layer index
             var layerIndex = worldLayerCollection.Layers.IndexOf(layer);
-            container.transform.localPosition = new Vector3(0, layerIndex * -0.02f, 0);
+            container.transform.localPosition = new Vector3(0, layerIndex * -0.05f, 0);
 
             visualGrid.TilesContainer = container.transform;
 
@@ -197,8 +197,8 @@ namespace CozyWorldGeneration.Core
                     tilesToRemove.Add(position);
             }
 
-            foreach (var position in tilesToRemove)
-                WorldGrid.RemoveTile(position.x, position.y, position.z);
+            foreach (var pos in tilesToRemove)
+                WorldGrid.RemoveTile(pos.x, pos.y, pos.z);
 
 #if UNITY_EDITOR
             UnityEditor.SceneView.RepaintAll();
@@ -213,11 +213,6 @@ namespace CozyWorldGeneration.Core
         public WorldTile GetWorldTile(int x, int y, int level)
         {
             return WorldGrid?.GetTile(x, y, level);
-        }
-
-        public WorldTile GetTopWorldTile(int x, int y)
-        {
-            return WorldGrid?.GetTopTile(x, y);
         }
 
 
@@ -291,7 +286,6 @@ namespace CozyWorldGeneration.Core
                 Gizmos.DrawLine(start, end);
             }
 
-            // Draw all tiles across all levels
             foreach (var position in WorldGrid.GetAllPositions())
             {
                 var tile = WorldGrid.GetTile(position.x, position.y, position.z);
@@ -305,7 +299,7 @@ namespace CozyWorldGeneration.Core
                     tileColor.a = 0.3f;
                     Gizmos.color = tileColor;
 
-                    // Offset Y slightly based on level to see stacked tiles
+                    // Offset gizmo Y based on level for visibility
                     var yOffset = 0.01f + level * 0.02f;
 
                     var corners = new Vector3[4]
@@ -325,7 +319,6 @@ namespace CozyWorldGeneration.Core
                 }
             }
         }
-
 
         private void DrawVisualGridGizmos()
         {

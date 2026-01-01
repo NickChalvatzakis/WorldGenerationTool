@@ -17,6 +17,5 @@ MonoBehaviour:
   isEnabled: 1
   previewTexture: {fileID: 0}
   layerColor: {r: 0.51790494, g: 0.8490566, b: 0.43654326, a: 1}
-  defaultLayerHeight: 0
   layerLevel: 0
   lockFromPaint: 0

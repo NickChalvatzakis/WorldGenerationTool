@@ -154,9 +154,7 @@ namespace CozyWorldGeneration.Editor
         private void PaintTile(int x, int y)
         {
             selectedLayer.PaintPixel(x, y, true);
-
-            // Use the layer's level
-            gridManager.WorldGrid.PlaceTile(x, y, selectedLayer.LayerLevel, selectedLayer);
+            gridManager.WorldGrid.PlaceTile(x, y, selectedLayer);
 
             EditorUtility.SetDirty(selectedLayer);
             SceneView.RepaintAll();
@@ -164,18 +162,20 @@ namespace CozyWorldGeneration.Editor
 
         private void EraseTile(int x, int y)
         {
-            var level = selectedLayer.LayerLevel;
+            int level = selectedLayer.LayerLevel;
             var tile = gridManager.WorldGrid.GetTile(x, y, level);
-
+    
+            // Only erase if this tile belongs to the selected layer
             if (tile != null && tile.SourceLayer == selectedLayer)
             {
-                tile.SourceLayer.PaintPixel(x, y, false);
-                EditorUtility.SetDirty(tile.SourceLayer);
-
+                selectedLayer.PaintPixel(x, y, false);
+                EditorUtility.SetDirty(selectedLayer);
+        
                 gridManager.WorldGrid.RemoveTile(x, y, level);
                 SceneView.RepaintAll();
             }
         }
+
 
         private void DrawGridPreview()
         {
