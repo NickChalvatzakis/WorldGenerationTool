@@ -341,9 +341,13 @@ namespace CozyWorldGeneration.Editor
 
             var refreshTextureBtn = new Button(() =>
             {
-                layer.InitializePreviewTexture(gridManager.Width, gridManager.Height);
+                // layer.InitializePreviewTexture(gridManager.Width, gridManager.Height);
+                layer.ForceRebuildTexture(gridManager.Width, gridManager.Height);
+
                 textureImage.image = layer.PreviewTexture;
-                EditorUtility.SetDirty(layer);
+                gridManager.RefreshVisualGridForLayer(layer);
+
+                SceneView.RepaintAll();
             })
             {
                 text = "Refresh"

@@ -65,8 +65,6 @@ namespace CozyWorldGeneration.Core.DualGrid
             if (tile == null)
                 return;
 
-            var level = worldLayer.LayerLevel;
-
             var bottomLeft =
                 worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y, worldLayer);
             var bottomRight =
@@ -77,13 +75,23 @@ namespace CozyWorldGeneration.Core.DualGrid
 
             tile.ConfigurationIndex = CalculateConfiguration(bottomLeft, bottomRight, topLeft, topRight);
 
+            // Debug: Log when we have a non-zero config
+            if (tile.ConfigurationIndex > 0)
+            {
+                var visualLayer = GetVisualLayerForWorldLayer?.Invoke(worldLayer);
+                Debug.Log($"[VisualGrid] Tile ({x},{y}) config: {tile.ConfigurationIndex}, " +
+                          $"VisualLayer: {visualLayer?.LayerName ?? "NULL"}, " +
+                          $"HasTileset: {visualLayer?.GetRandomTileset() != null}");
+            }
+
             if (GetVisualLayerForWorldLayer != null && worldLayer != null)
             {
                 var visualLayer = GetVisualLayerForWorldLayer(worldLayer);
                 if (visualLayer != null) tile.SetVisualLayer(visualLayer);
             }
 
-            if (TilesContainer != null) tile.UpdateVisual(TilesContainer, TileSize);
+            if (TilesContainer != null)
+                tile.UpdateVisual(TilesContainer, TileSize);
         }
 
 

@@ -47,11 +47,42 @@ namespace CozyWorldGeneration.Core
         private void Awake()
         {
             InitializeGrids();
+            RebuildFromLayerData();
         }
 
         private void OnEnable()
         {
             SubscribeToEvents();
+#if UNITY_EDITOR
+            RebuildFromLayerData();
+#endif
+        }
+
+        public void RebuildFromLayerData()
+        {
+            if (WorldGrid == null || worldLayerCollection == null) return;
+
+            WorldGrid.SuppressEvents = true;
+            WorldGrid.Clear();
+
+            foreach (var layer in worldLayerCollection.Layers)
+            {
+                if (layer == null) continue;
+
+                layer.ForceRebuildTexture(gridWidth, gridHeight);
+
+                if (layer.PreviewTexture == null) continue;
+
+                for (var x = 0; x < layer.PreviewTexture.width; x++)
+                for (var y = 0; y < layer.PreviewTexture.height; y++)
+                    if (layer.IsPixelPainted(x, y))
+                        WorldGrid.PlaceTile(x, y, layer);
+            }
+
+            WorldGrid.SuppressEvents = false;
+            RefreshAlLVisualGrids();
+
+            Debug.Log($"[GridManager] Rebuilt grid from layer data.");
         }
 
         private void OnDisable()
@@ -67,7 +98,7 @@ namespace CozyWorldGeneration.Core
 #if UNITY_EDITOR
         private void OnValidate()
         {
-            if (WorldGrid == null) InitializeGrids();
+            // if (WorldGrid == null) InitializeGrids();
         }
 
         private void Reset()
@@ -81,11 +112,11 @@ namespace CozyWorldGeneration.Core
             if (worldLayerCollection == null) worldLayerCollection = new WorldLayerCollection("World Layers");
             if (visualLayerCollection == null) visualLayerCollection = new VisualLayerCollection("Visual Layers");
 
-            // Create main container for visual tiles if it doesn't exist
             if (visualTilesContainer == null)
             {
                 var container = new GameObject("Visual Tiles");
                 container.transform.SetParent(transform);
+                container.hideFlags = HideFlags.DontSave;
                 visualTilesContainer = container.transform;
             }
 
@@ -110,6 +141,7 @@ namespace CozyWorldGeneration.Core
             var visualGrid = new VisualGrid(gridWidth - 1, gridHeight - 1, WorldGrid, layer, TileSize);
             var container = new GameObject($"Layer_{layer.LayerName}");
             container.transform.SetParent(visualTilesContainer);
+            container.hideFlags = HideFlags.DontSave;
 
             // Auto-offset based on layer index
             var layerIndex = worldLayerCollection.Layers.IndexOf(layer);
@@ -128,7 +160,11 @@ namespace CozyWorldGeneration.Core
 
         private void InitializeLayerTextures()
         {
-            foreach (var layer in worldLayerCollection.Layers) layer?.InitializePreviewTexture(gridWidth, gridHeight);
+            foreach (var layer in worldLayerCollection.Layers)
+                if (layer.PreviewTexture == null ||
+                    layer.PreviewTexture.width != gridWidth ||
+                    layer.PreviewTexture.height != gridHeight)
+                    layer.InitializePreviewTexture(gridWidth, gridHeight);
         }
 
         // TODO: add all the actions in events not just layer actions.
@@ -367,21 +403,61 @@ namespace CozyWorldGeneration.Core
         [ContextMenu("Reinitialize Grids")]
         public void EditorReinitialize()
         {
+            if (worldLayerCollection?.Layers != null)
+                foreach (var layer in worldLayerCollection.Layers)
+                    if (layer != null)
+                    {
+                        layer.ClearPreviewTexture();
+                        UnityEditor.EditorUtility.SetDirty(layer);
+                    }
+
             ClearGrids();
             InitializeGrids();
         }
 #endif
         public void RefreshAlLVisualGrids()
         {
-            if (visualGrids == null) return;
+            if (visualGrids == null)
+            {
+                Debug.LogWarning("[GridManager] visualGrids is null!");
+                return;
+            }
+
+            Debug.Log($"[GridManager] RefreshAlLVisualGrids - visualGrids count: {visualGrids.Count}");
 
             foreach (var kvp in visualGrids)
             {
+                var layer = kvp.Key;
                 var visualGrid = kvp.Value;
+
+                Debug.Log(
+                    $"[GridManager] Refreshing layer: {layer.LayerName}, TilesContainer: {visualGrid.TilesContainer != null}");
+
+                var tilesUpdated = 0;
                 for (var x = 0; x < visualGrid.Width; x++)
                 for (var y = 0; y < visualGrid.Height; y++)
+                {
                     visualGrid.UpdateVisualTile(x, y);
+                    var tile = visualGrid.GetTile(x, y);
+                    if (tile != null && tile.ConfigurationIndex > 0)
+                        tilesUpdated++;
+                }
+
+                Debug.Log($"[GridManager] Layer {layer.LayerName} - tiles with config > 0: {tilesUpdated}");
             }
+        }
+
+        public void RefreshVisualGridForLayer(WorldLayer layer)
+        {
+            if (layer == null || !visualGrids.ContainsKey(layer)) return;
+
+            var visualGrid = visualGrids[layer];
+
+            for (var x = 0; x < visualGrid.Width; x++)
+            for (var y = 0; y < visualGrid.Height; y++)
+                visualGrid.UpdateVisualTile(x, y);
+
+            Debug.Log($"[GridManager] Refreshed visual grid for layer: {layer.LayerName}");
         }
     }
 }
