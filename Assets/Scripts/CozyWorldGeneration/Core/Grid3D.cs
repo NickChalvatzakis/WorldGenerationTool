@@ -15,7 +15,7 @@ namespace CozyWorldGeneration.Core
         public int Height { get; protected set; }
         public int MaxLevels { get; protected set; }
 
-        protected Grid3D(int width, int height, int maxLevels = 10)
+        protected Grid3D(int width, int height, int maxLevels)
         {
             Width = width;
             Height = height;
@@ -56,9 +56,22 @@ namespace CozyWorldGeneration.Core
             return x >= 0 && x < Width && y >= 0 && y < Height;
         }
 
+        public bool IsValidPosition(Vector2Int position)
+        {
+            return IsValidPosition(position.x, position.y);
+        }
+
         public bool IsValidPosition(int x, int y, int level)
         {
             return IsValidPosition(x, y) && level >= 0 && level < MaxLevels;
+        }
+
+        /// <summary>
+        /// Vector3Int (x,y,level)
+        /// </summary>
+        public bool IsValidPosition(Vector3Int position)
+        {
+            return IsValidPosition(position.x, position.y) && position.z >= 0 && position.z < MaxLevels;
         }
 
         public bool HasTile(int x, int y, int level)

@@ -14,6 +14,7 @@ namespace CozyWorldGeneration.Core
         private int gridWidth = 20;
 
         [SerializeField] private int gridHeight = 20;
+        [SerializeField] private int gridMaxLevels = 10;
         [SerializeField] private float tileSize = 1f;
         private Dictionary<WorldLayer, VisualGrid> visualGrids = new();
 
@@ -33,6 +34,7 @@ namespace CozyWorldGeneration.Core
 
         public int Width => gridWidth;
         public int Height => gridHeight;
+        public int MaxLevels => gridMaxLevels;
         public float TileSize => tileSize;
 
         public WorldLayerCollection WorldLayerCollection => worldLayerCollection;
@@ -120,7 +122,7 @@ namespace CozyWorldGeneration.Core
                 visualTilesContainer = container.transform;
             }
 
-            WorldGrid = new WorldGrid(gridWidth, gridHeight);
+            WorldGrid = new WorldGrid(gridWidth, gridHeight, gridMaxLevels);
 
             foreach (var layer in worldLayerCollection.Layers)
                 if (layer != null)

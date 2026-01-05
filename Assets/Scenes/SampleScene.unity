@@ -302,6 +302,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CozyWorldGeneration.Core.GridManager
   gridWidth: 20
   gridHeight: 20
+  gridMaxLevels: 10
   tileSize: 1
   worldLayerCollection:
     guid: 2115217d-28cb-430c-a0e6-976331b481ca

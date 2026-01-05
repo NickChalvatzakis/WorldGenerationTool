@@ -5,43 +5,31 @@ using System.Collections.Generic;
 
 namespace CozyWorldGeneration.Core.DualGrid
 {
-    public class WorldGrid
+    public class WorldGrid : Grid3D<WorldTile>
     {
-        // Key is (x, y, level)
-        private Dictionary<Vector3Int, WorldTile> tiles = new();
-
-        public int Width { get; private set; }
-        public int Height { get; private set; }
         public bool SuppressEvents { get; set; } = false;
 
-        public WorldGrid(int width, int height)
+        public WorldGrid(int width, int height, int maxLevels) : base(width, height, maxLevels)
         {
-            Width = width;
-            Height = height;
         }
 
         public void PlaceTile(int x, int y, WorldLayer layer)
         {
             if (!IsValidPosition(x, y) || layer == null) return;
 
-            var key = new Vector3Int(x, y, layer.LayerLevel);
-            tiles[key] = new WorldTile(x, y, layer);
+            var tile = new WorldTile(x, y, layer);
+            SetTile(x, y, layer.LayerLevel, tile);
+
             if (!SuppressEvents)
                 ToolEvents.RaiseTileChanged(x, y);
         }
 
         public void RemoveTile(int x, int y, int level)
         {
-            var key = new Vector3Int(x, y, level);
-            if (tiles.Remove(key) && !SuppressEvents)
+            if (!HasTile(x, y, level)) return;
+            SetTile(x, y, level, null);
+            if (!SuppressEvents)
                 ToolEvents.RaiseTileChanged(x, y);
-        }
-
-        public WorldTile GetTile(int x, int y, int level)
-        {
-            var key = new Vector3Int(x, y, level);
-            tiles.TryGetValue(key, out var tile);
-            return tile;
         }
 
         public bool HasTileAt(int x, int y, int level)
@@ -54,28 +42,15 @@ namespace CozyWorldGeneration.Core.DualGrid
         /// </summary>
         public bool HasTileForLayer(int x, int y, WorldLayer layer)
         {
+            if (layer == null) return false;
+
             var tile = GetTile(x, y, layer.LayerLevel);
             return tile != null && tile.SourceLayer == layer;
         }
 
-        public IEnumerable<Vector3Int> GetAllPositions()
+        public override void Clear()
         {
-            return tiles.Keys;
-        }
-
-        public bool IsValidPosition(int x, int y)
-        {
-            return x >= 0 && x < Width && y >= 0 && y < Height;
-        }
-
-        public bool IsValidPosition(Vector2Int pos)
-        {
-            return IsValidPosition(pos.x, pos.y);
-        }
-
-        public void Clear()
-        {
-            tiles.Clear();
+            base.Clear();
             if (!SuppressEvents)
                 ToolEvents.RaiseGridCleared();
         }
