@@ -71,7 +71,7 @@ namespace CozyWorldGeneration.Editor
             }
 
             gridManager.WorldGrid.SuppressEvents = false;
-            gridManager.RefreshAlLVisualGrids();
+            gridManager.RefreshAllVisualGrids();
         }
 
         public override VisualElement CreateInspectorGUI()

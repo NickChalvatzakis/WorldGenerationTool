@@ -26,7 +26,6 @@ namespace CozyWorldGeneration.Core.DualGrid
 
             var key = new Vector3Int(x, y, layer.LayerLevel);
             tiles[key] = new WorldTile(x, y, layer);
-            ToolEvents.RaiseTileChanged(x, y);
             if (!SuppressEvents)
                 ToolEvents.RaiseTileChanged(x, y);
         }

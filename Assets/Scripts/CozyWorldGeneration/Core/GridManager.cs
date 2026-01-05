@@ -80,7 +80,7 @@ namespace CozyWorldGeneration.Core
             }
 
             WorldGrid.SuppressEvents = false;
-            RefreshAlLVisualGrids();
+            RefreshAllVisualGrids();
 
             Debug.Log($"[GridManager] Rebuilt grid from layer data.");
         }
@@ -415,7 +415,7 @@ namespace CozyWorldGeneration.Core
             InitializeGrids();
         }
 #endif
-        public void RefreshAlLVisualGrids()
+        public void RefreshAllVisualGrids()
         {
             if (visualGrids == null)
             {
@@ -423,7 +423,7 @@ namespace CozyWorldGeneration.Core
                 return;
             }
 
-            Debug.Log($"[GridManager] RefreshAlLVisualGrids - visualGrids count: {visualGrids.Count}");
+            Debug.Log($"[GridManager] RefreshAllVisualGrids - visualGrids count: {visualGrids.Count}");
 
             foreach (var kvp in visualGrids)
             {
