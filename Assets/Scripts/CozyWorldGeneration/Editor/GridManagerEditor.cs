@@ -18,7 +18,6 @@ namespace CozyWorldGeneration.Editor
         private Foldout worldLayersFoldout;
         private Foldout visualLayersFoldout;
 
-
         private void OnEnable()
         {
             gridManager = (GridManager)target;
@@ -35,16 +34,13 @@ namespace CozyWorldGeneration.Editor
             if (gridManager == null || gridManager.WorldGrid == null)
                 return;
 
-            // Force all layers to rebuild textures first
             if (gridManager.WorldLayerCollection?.Layers != null)
                 foreach (var layer in gridManager.WorldLayerCollection.Layers)
-                    // Pass grid dimensions as fallback
                     layer?.ForceRebuildTexture(gridManager.Width, gridManager.Height);
 
             RebuildWorldGridFromLayers();
             SceneView.RepaintAll();
         }
-
 
         private void RebuildWorldGridFromLayers()
         {
@@ -57,7 +53,6 @@ namespace CozyWorldGeneration.Editor
             {
                 if (layer == null) continue;
 
-                // Skip layers with no texture
                 if (layer.PreviewTexture == null)
                 {
                     Debug.LogWarning($"[GridManager] Layer '{layer.LayerName}' has no PreviewTexture, skipping.");
@@ -80,6 +75,7 @@ namespace CozyWorldGeneration.Editor
             root = new VisualElement();
 
             CreateGridSettingsSection();
+            CreateFluidSettingsSection();
             CreateLayerCollectionSection();
             CreateDebugSection();
 
@@ -121,13 +117,128 @@ namespace CozyWorldGeneration.Editor
             root.Add(gridSettingsFoldout);
         }
 
+        private void CreateFluidSettingsSection()
+        {
+            var fluidSettingsFoldout = new Foldout { text = "Fluid Settings", value = true };
+            fluidSettingsFoldout.style.marginTop = 10;
+
+            // Enable Fluids Toggle
+            var enableFluidsToggle = new Toggle("Enable Fluids")
+            {
+                value = serializedObject.FindProperty("enableFluids").boolValue
+            };
+            enableFluidsToggle.RegisterValueChangedCallback(evt =>
+            {
+                serializedObject.FindProperty("enableFluids").boolValue = evt.newValue;
+                serializedObject.ApplyModifiedProperties();
+            });
+
+            // Tick Rate
+            var tickRateField = new FloatField("Tick Rate")
+            {
+                value = serializedObject.FindProperty("fluidTickRate").floatValue
+            };
+            tickRateField.RegisterValueChangedCallback(evt =>
+            {
+                serializedObject.FindProperty("fluidTickRate").floatValue = Mathf.Max(0.1f, evt.newValue);
+                serializedObject.ApplyModifiedProperties();
+            });
+
+            var tickRateHint = new Label("Simulations per second");
+            tickRateHint.style.fontSize = 10;
+            tickRateHint.style.color = new Color(0.6f, 0.6f, 0.6f);
+            tickRateHint.style.marginBottom = 5;
+
+            // Max Levels
+            var maxLevelsField = new IntegerField("Max Fluid Levels")
+            {
+                value = serializedObject.FindProperty("maxFluidLevels").intValue
+            };
+            maxLevelsField.RegisterValueChangedCallback(evt =>
+            {
+                serializedObject.FindProperty("maxFluidLevels").intValue = Mathf.Max(1, evt.newValue);
+                serializedObject.ApplyModifiedProperties();
+            });
+
+            // Runtime Info
+            var runtimeInfoContainer = new VisualElement();
+            runtimeInfoContainer.style.marginTop = 10;
+            runtimeInfoContainer.style.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 0.3f);
+            runtimeInfoContainer.style.paddingTop = 5;
+            runtimeInfoContainer.style.paddingBottom = 5;
+            runtimeInfoContainer.style.paddingLeft = 5;
+            runtimeInfoContainer.style.paddingRight = 5;
+            runtimeInfoContainer.style.borderBottomLeftRadius = 4;
+            runtimeInfoContainer.style.borderBottomRightRadius = 4;
+            runtimeInfoContainer.style.borderTopLeftRadius = 4;
+            runtimeInfoContainer.style.borderTopRightRadius = 4;
+
+            var runtimeLabel = new Label("Runtime Info");
+            runtimeLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            runtimeLabel.style.marginBottom = 5;
+
+            var fluidTileCountLabel = new Label("Fluid Tiles: --");
+            var fluidBodyCountLabel = new Label("Fluid Bodies: --");
+
+            // Update runtime info periodically
+            runtimeInfoContainer.schedule.Execute(() =>
+            {
+                if (gridManager != null && gridManager.FluidSimulator != null)
+                {
+                    var fluidGrid = gridManager.FluidSimulator.fluidGrid;
+                    if (fluidGrid != null) fluidTileCountLabel.text = $"Fluid Tiles: {fluidGrid.GetTileCount()}";
+                    fluidBodyCountLabel.text = $"Fluid Bodies: {gridManager.FluidSimulator.BodyCount}";
+                }
+                else
+                {
+                    fluidTileCountLabel.text = "Fluid Tiles: (not running)";
+                    fluidBodyCountLabel.text = "Fluid Bodies: (not running)";
+                }
+            }).Every(500);
+
+            runtimeInfoContainer.Add(runtimeLabel);
+            runtimeInfoContainer.Add(fluidTileCountLabel);
+            runtimeInfoContainer.Add(fluidBodyCountLabel);
+
+            // Clear Fluids Button
+            var clearFluidsBtn = new Button(() =>
+            {
+                if (gridManager.FluidSimulator?.fluidGrid == null)
+                {
+                    EditorUtility.DisplayDialog("No Fluids", "FluidSimulator not initialized", "OK");
+                    return;
+                }
+
+                if (EditorUtility.DisplayDialog("Clear All Fluids",
+                        "Clear all fluid data?", "Yes", "No"))
+                {
+                    gridManager.FluidSimulator.fluidGrid.Clear();
+                    SceneView.RepaintAll();
+                    Debug.Log("[GridManager] Cleared all fluids");
+                }
+            })
+            {
+                text = "Clear All Fluids"
+            };
+            clearFluidsBtn.style.marginTop = 10;
+            clearFluidsBtn.style.backgroundColor = new Color(0.5f, 0.2f, 0.2f);
+
+            fluidSettingsFoldout.Add(enableFluidsToggle);
+            fluidSettingsFoldout.Add(tickRateField);
+            fluidSettingsFoldout.Add(tickRateHint);
+            fluidSettingsFoldout.Add(maxLevelsField);
+            fluidSettingsFoldout.Add(runtimeInfoContainer);
+            fluidSettingsFoldout.Add(clearFluidsBtn);
+
+            root.Add(fluidSettingsFoldout);
+        }
+
         private void CreateLayerCollectionSection()
         {
             // World Layers
             worldLayersFoldout = new Foldout { text = "World Layers", value = true };
             worldLayersFoldout.style.marginTop = 10;
 
-            // Add existing layer via ObjectField
             var addExistingWorldLayer = new ObjectField("Add Existing Layer")
             {
                 objectType = typeof(WorldLayer),
@@ -146,7 +257,7 @@ namespace CozyWorldGeneration.Editor
                         RefreshWorldLayers();
                     }
 
-                    addExistingWorldLayer.SetValueWithoutNotify(null); // Reset field
+                    addExistingWorldLayer.SetValueWithoutNotify(null);
                 }
             });
             worldLayersFoldout.Add(addExistingWorldLayer);
@@ -165,7 +276,6 @@ namespace CozyWorldGeneration.Editor
             visualLayersFoldout = new Foldout { text = "Visual Layers", value = true };
             visualLayersFoldout.style.marginTop = 10;
 
-            // Add existing layer via ObjectField
             var addExistingVisualLayer = new ObjectField("Add Existing Layer")
             {
                 objectType = typeof(VisualLayer),
@@ -183,7 +293,7 @@ namespace CozyWorldGeneration.Editor
                         RefreshVisualLayers();
                     }
 
-                    addExistingVisualLayer.SetValueWithoutNotify(null); // Reset field
+                    addExistingVisualLayer.SetValueWithoutNotify(null);
                 }
             });
             visualLayersFoldout.Add(addExistingVisualLayer);
@@ -201,7 +311,6 @@ namespace CozyWorldGeneration.Editor
 
         private void RefreshWorldLayers()
         {
-            // Remove all except first two (ObjectField and Button)
             while (worldLayersFoldout.childCount > 2)
                 worldLayersFoldout.RemoveAt(2);
 
@@ -218,7 +327,6 @@ namespace CozyWorldGeneration.Editor
 
         private void RefreshVisualLayers()
         {
-            // Remove all except first two (ObjectField and Button)
             while (visualLayersFoldout.childCount > 2)
                 visualLayersFoldout.RemoveAt(2);
 
@@ -247,7 +355,6 @@ namespace CozyWorldGeneration.Editor
             container.style.borderTopLeftRadius = 4;
             container.style.borderTopRightRadius = 4;
 
-            // Header row with foldout and X button
             var header = new VisualElement();
             header.style.flexDirection = FlexDirection.Row;
             header.style.alignItems = Align.FlexStart;
@@ -287,7 +394,6 @@ namespace CozyWorldGeneration.Editor
                 layer.LayerLevel = evt.newValue;
                 EditorUtility.SetDirty(layer);
             });
-
 
             var enabledToggle = new Toggle("Enabled") { value = layer.IsEnabled };
             enabledToggle.RegisterValueChangedCallback(evt =>
@@ -341,12 +447,9 @@ namespace CozyWorldGeneration.Editor
 
             var refreshTextureBtn = new Button(() =>
             {
-                // layer.InitializePreviewTexture(gridManager.Width, gridManager.Height);
                 layer.ForceRebuildTexture(gridManager.Width, gridManager.Height);
-
                 textureImage.image = layer.PreviewTexture;
                 gridManager.RefreshVisualGridForLayer(layer);
-
                 SceneView.RepaintAll();
             })
             {
@@ -377,10 +480,9 @@ namespace CozyWorldGeneration.Editor
             container.style.borderTopLeftRadius = 4;
             container.style.borderTopRightRadius = 4;
 
-            // Header row with foldout and X button
             var header = new VisualElement();
             header.style.flexDirection = FlexDirection.Row;
-            header.style.alignItems = Align.FlexStart; // Align to top
+            header.style.alignItems = Align.FlexStart;
 
             var foldout = new Foldout { text = layer.LayerName, value = layer.foldoutState };
             foldout.style.flexGrow = 1;
@@ -396,7 +498,6 @@ namespace CozyWorldGeneration.Editor
             header.Add(removeBtn);
             container.Add(header);
 
-            // Properties
             var nameField = new TextField("Name") { value = layer.LayerName };
             nameField.RegisterValueChangedCallback(evt =>
             {
@@ -430,7 +531,6 @@ namespace CozyWorldGeneration.Editor
                 EditorUtility.SetDirty(layer);
             });
 
-            // Tilesets
             var tilesetsLabel = new Label("Tilesets:");
             tilesetsLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
             tilesetsLabel.style.marginTop = 5;
@@ -586,7 +686,7 @@ namespace CozyWorldGeneration.Editor
                     ClearTilesFromLayerInManager(layer);
 
                 SceneView.RepaintAll();
-                RefreshWorldLayers(); // Refresh to update texture preview
+                RefreshWorldLayers();
             }
         }
 
@@ -608,7 +708,6 @@ namespace CozyWorldGeneration.Editor
 
             Debug.Log($"[Editor] Cleared {tilesToRemove.Count} tiles from grid");
         }
-
 
         private void CreateDebugSection()
         {
@@ -644,15 +743,15 @@ namespace CozyWorldGeneration.Editor
                 serializedObject.ApplyModifiedProperties();
             });
 
-            // var drawDebugTileToggle = new Toggle("Draw Debug Tiles")
-            // {
-            //     value = serializedObject.FindProperty("drawDebugTiles").boolValue
-            // };
-            // drawDebugTileToggle.RegisterValueChangedCallback(evt =>
-            // {
-            //     serializedObject.FindProperty("drawDebugTiles").boolValue = evt.newValue;
-            //     serializedObject.ApplyModifiedProperties();
-            // });
+            var drawFluidsToggle = new Toggle("Draw Fluids")
+            {
+                value = serializedObject.FindProperty("drawFluids").boolValue
+            };
+            drawFluidsToggle.RegisterValueChangedCallback(evt =>
+            {
+                serializedObject.FindProperty("drawFluids").boolValue = evt.newValue;
+                serializedObject.ApplyModifiedProperties();
+            });
 
             var worldGridColorPicker = new ColorField("World Grid Color")
             {
@@ -677,7 +776,7 @@ namespace CozyWorldGeneration.Editor
             debugFoldout.Add(drawGizmosToggle);
             debugFoldout.Add(drawWorldToggle);
             debugFoldout.Add(drawVisualToggle);
-            // debugFoldout.Add(drawDebugTileToggle);
+            debugFoldout.Add(drawFluidsToggle);
             debugFoldout.Add(worldGridColorPicker);
             debugFoldout.Add(visualGridColorPicker);
 

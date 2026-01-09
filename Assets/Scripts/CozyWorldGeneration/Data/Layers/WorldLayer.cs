@@ -1,6 +1,6 @@
 ﻿using System;
 using CozyWorldGeneration.Core.Enums;
-using CozyWorldGeneration.Events;
+using CozyWorldGeneration.Core.Events;
 using UnityEngine;
 
 namespace CozyWorldGeneration.Data.Layers
@@ -133,8 +133,8 @@ namespace CozyWorldGeneration.Data.Layers
                 previewTexture.SetPixels(clearColors);
                 previewTexture.Apply();
 
-                // Raise event through centralized system
-                ToolEvents.RaiseLayerCleared(this);
+                // Trigger event through centralized system
+                ToolEvents.TriggerLayerCleared(this);
 
 #if UNITY_EDITOR
                 Debug.Log($"[WorldLayer] Cleared preview texture for {LayerName}");

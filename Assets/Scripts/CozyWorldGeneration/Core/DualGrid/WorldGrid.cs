@@ -1,14 +1,12 @@
 ﻿using CozyWorldGeneration.Data.Layers;
-using CozyWorldGeneration.Events;
 using UnityEngine;
 using System.Collections.Generic;
+using CozyWorldGeneration.Core.Events;
 
 namespace CozyWorldGeneration.Core.DualGrid
 {
     public class WorldGrid : Grid3D<WorldTile>
     {
-        public bool SuppressEvents { get; set; } = false;
-
         public WorldGrid(int width, int height, int maxLevels) : base(width, height, maxLevels)
         {
         }
@@ -21,7 +19,7 @@ namespace CozyWorldGeneration.Core.DualGrid
             SetTile(x, y, layer.LayerLevel, tile);
 
             if (!SuppressEvents)
-                ToolEvents.RaiseTileChanged(x, y);
+                ToolEvents.TriggerTileChanged(x, y);
         }
 
         public void RemoveTile(int x, int y, int level)
@@ -29,7 +27,7 @@ namespace CozyWorldGeneration.Core.DualGrid
             if (!HasTile(x, y, level)) return;
             SetTile(x, y, level, null);
             if (!SuppressEvents)
-                ToolEvents.RaiseTileChanged(x, y);
+                ToolEvents.TriggerTileChanged(x, y);
         }
 
         public bool HasTileAt(int x, int y, int level)
@@ -52,7 +50,7 @@ namespace CozyWorldGeneration.Core.DualGrid
         {
             base.Clear();
             if (!SuppressEvents)
-                ToolEvents.RaiseGridCleared();
+                ToolEvents.TriggerGridCleared();
         }
     }
 }

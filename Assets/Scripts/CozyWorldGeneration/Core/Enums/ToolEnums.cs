@@ -11,7 +11,7 @@
         Fill
     }
 
-// This is mostly for grass but we'll see
+    // This is mostly for grass but we'll see
     public enum TileState
     {
         Normal,
@@ -20,5 +20,11 @@
         Ramp,
         Stairs,
         Waterlogged
+    }
+
+    public enum PaintMode
+    {
+        Terrain,
+        Fluid
     }
 }

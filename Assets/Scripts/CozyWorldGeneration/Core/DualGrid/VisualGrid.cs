@@ -96,7 +96,7 @@ namespace CozyWorldGeneration.Core.DualGrid
 
 
         /// <summary>
-        /// Calculates configuration index (0-15) based on which neighbors are filled.
+        /// Calculates configuration index (0-15) based on which neighbours are filled.
         /// </summary>
         private int CalculateConfiguration(bool bottomLeft, bool bottomRight, bool topLeft, bool topRight)
         {

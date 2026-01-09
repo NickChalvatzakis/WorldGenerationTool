@@ -1,8 +1,8 @@
 ﻿using UnityEngine;
 using System;
 using System.Collections.Generic;
+using CozyWorldGeneration.Core.Events;
 using CozyWorldGeneration.Data.Layers;
-using CozyWorldGeneration.Events;
 
 namespace CozyWorldGeneration
 {
@@ -64,7 +64,7 @@ namespace CozyWorldGeneration
             if (layer != null && !layers.Contains(layer))
             {
                 layers.Add(layer);
-                ToolEvents.RaiseLayerAdded(layer);
+                ToolEvents.TriggerLayerAdded(layer);
             }
         }
 
@@ -76,7 +76,7 @@ namespace CozyWorldGeneration
             if (layer != null)
             {
                 layers.Remove(layer);
-                ToolEvents.RaiseLayerRemoved(layer);
+                ToolEvents.TriggerLayerRemoved(layer);
             }
         }
 

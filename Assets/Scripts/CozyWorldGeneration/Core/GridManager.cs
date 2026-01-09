@@ -1,8 +1,9 @@
 ﻿using System.Collections.Generic;
 using CozyWorldGeneration.Core.DualGrid;
 using CozyWorldGeneration.Core.Enums;
+using CozyWorldGeneration.Core.Events;
+using CozyWorldGeneration.Core.Fluids;
 using CozyWorldGeneration.Data.Layers;
-using CozyWorldGeneration.Events;
 using UnityEngine;
 
 namespace CozyWorldGeneration.Core
@@ -16,6 +17,13 @@ namespace CozyWorldGeneration.Core
         [SerializeField] private int gridHeight = 20;
         [SerializeField] private int gridMaxLevels = 10;
         [SerializeField] private float tileSize = 1f;
+
+        [Header("Fluid Settings")] [SerializeField]
+        private bool enableFluids = true;
+
+        [SerializeField] private float fluidTickRate = 10f;
+        [SerializeField] private int maxFluidLevels = 10;
+
         private Dictionary<WorldLayer, VisualGrid> visualGrids = new();
 
         [Header("Layer Collections")] [SerializeField]
@@ -28,9 +36,12 @@ namespace CozyWorldGeneration.Core
         [SerializeField] private bool drawVisualGrid = true;
         [SerializeField] private Color worldGridColor = new(0.2f, 0.2f, 0.2f);
         [SerializeField] private Color visualGridColor = new(0.2f, 0.2f, 0.2f);
+        [SerializeField] private bool drawFluids = true;
         // [SerializeField] private bool drawDebugTiles = false;
 
         public WorldGrid WorldGrid { get; private set; }
+        public FluidSimulator FluidSimulator { get; private set; }
+
 
         public int Width => gridWidth;
         public int Height => gridHeight;
@@ -50,12 +61,21 @@ namespace CozyWorldGeneration.Core
         {
             InitializeGrids();
             RebuildFromLayerData();
+
+            if (enableFluids) InitializeFluids();
+        }
+
+        private void InitializeFluids()
+        {
+            FluidSimulator = GetComponent<FluidSimulator>();
+            FluidSimulator.Initialize(gridWidth, gridHeight, gridMaxLevels);
         }
 
         private void OnEnable()
         {
             SubscribeToEvents();
 #if UNITY_EDITOR
+            if (enableFluids && FluidSimulator == null) InitializeFluids();
             RebuildFromLayerData();
 #endif
         }
@@ -130,7 +150,7 @@ namespace CozyWorldGeneration.Core
 
 
             InitializeLayerTextures();
-            ToolEvents.RaiseGridInitialized(gridWidth, gridHeight);
+            ToolEvents.TriggerGridInitialized(gridWidth, gridHeight);
 
             Debug.Log(
                 $"GridManager initialized: WorldGrid ({gridWidth}x{gridHeight}), VisualGrid ({gridWidth - 1}x{gridHeight - 1})");

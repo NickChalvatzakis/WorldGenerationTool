@@ -4,25 +4,63 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using System.Collections.Generic;
 using CozyWorldGeneration.Core;
+using CozyWorldGeneration.Core.Enums;
+using CozyWorldGeneration.Core.Fluids;
+using CozyWorldGeneration.Data.Fluids;
 using CozyWorldGeneration.Data.Layers;
 
 namespace CozyWorldGeneration.Editor
 {
-    /// <summary>
-    /// Overlay widget that appears in the Scene View for painting on grid layers.
-    /// </summary>
     [Overlay(typeof(SceneView), "Grid Painter")]
     public class GridPainterOverlay : Overlay
     {
         private GridManager activeGridManager;
         private WorldLayer selectedLayer;
+        private FluidType selectedFluidType;
+        private PaintMode paintMode = PaintMode.Terrain;
+
         private VisualElement root;
         private ScrollView layerScrollView;
+        private VisualElement fluidSettingsContainer;
+        private VisualElement terrainSettingsContainer;
+
         private int brushSize = 1;
+        private int fluidAmount = 7;
+        private bool placeAsSource = false;
 
         public int GetBrushSize()
         {
             return brushSize;
+        }
+
+        public PaintMode GetPaintMode()
+        {
+            return paintMode;
+        }
+
+        public FluidType GetSelectedFluidType()
+        {
+            return selectedFluidType;
+        }
+
+        public int GetFluidAmount()
+        {
+            return fluidAmount;
+        }
+
+        public bool GetPlaceAsSource()
+        {
+            return placeAsSource;
+        }
+
+        public WorldLayer GetSelectedLayer()
+        {
+            return selectedLayer;
+        }
+
+        public GridManager GetActiveGridManager()
+        {
+            return activeGridManager;
         }
 
         public override void OnCreated()
@@ -35,14 +73,15 @@ namespace CozyWorldGeneration.Editor
         {
             base.OnWillBeDestroyed();
             selectedLayer = null;
+            selectedFluidType = null;
             activeGridManager = null;
         }
 
         public override VisualElement CreatePanelContent()
         {
             root = new VisualElement();
-            root.style.minWidth = 200;
-            root.style.maxWidth = 250;
+            root.style.minWidth = 220;
+            root.style.maxWidth = 280;
             root.style.backgroundColor = new Color(0.15f, 0.15f, 0.15f, 0.95f);
             root.style.paddingLeft = 5;
             root.style.paddingRight = 5;
@@ -61,6 +100,21 @@ namespace CozyWorldGeneration.Editor
             titleLabel.style.color = Color.white;
             root.Add(titleLabel);
 
+            // Paint Mode Toggle
+            var modeContainer = new VisualElement();
+            modeContainer.style.flexDirection = FlexDirection.Row;
+            modeContainer.style.marginBottom = 10;
+
+            var terrainModeBtn = new Button(() => SetPaintMode(PaintMode.Terrain)) { text = "Terrain" };
+            terrainModeBtn.style.flexGrow = 1;
+
+            var fluidModeBtn = new Button(() => SetPaintMode(PaintMode.Fluid)) { text = "Fluid" };
+            fluidModeBtn.style.flexGrow = 1;
+
+            modeContainer.Add(terrainModeBtn);
+            modeContainer.Add(fluidModeBtn);
+            root.Add(modeContainer);
+
             // Info section
             var infoLabel = new Label("Select a GridManager in the scene");
             infoLabel.style.fontSize = 10;
@@ -70,14 +124,11 @@ namespace CozyWorldGeneration.Editor
             root.Add(infoLabel);
 
             // Refresh button
-            var refreshButton = new Button(RefreshGridManager)
-            {
-                text = "Refresh"
-            };
+            var refreshButton = new Button(RefreshGridManager) { text = "Refresh" };
             refreshButton.style.marginBottom = 10;
             root.Add(refreshButton);
 
-            // Brush Size slider — ADD THIS SECTION
+            // Brush Size
             var brushSizeContainer = new VisualElement();
             brushSizeContainer.style.marginBottom = 10;
 
@@ -93,43 +144,95 @@ namespace CozyWorldGeneration.Editor
                 SceneView.RepaintAll();
             });
 
-            var brushSizeHint = new Label("(Shift + Scroll to adjust)");
-            brushSizeHint.style.fontSize = 9;
-            brushSizeHint.style.color = new Color(0.5f, 0.5f, 0.5f);
-
             brushSizeContainer.Add(brushSizeLabel);
             brushSizeContainer.Add(brushSizeSlider);
-            brushSizeContainer.Add(brushSizeHint);
             root.Add(brushSizeContainer);
 
-            // Scroll view for layers
+            // Terrain Settings Container
+            terrainSettingsContainer = new VisualElement();
+            root.Add(terrainSettingsContainer);
+
+            // Fluid Settings Container
+            fluidSettingsContainer = new VisualElement();
+            fluidSettingsContainer.style.display = DisplayStyle.None;
+            CreateFluidSettings();
+            root.Add(fluidSettingsContainer);
+
+            // Layer scroll view
             layerScrollView = new ScrollView();
-            layerScrollView.style.maxHeight = 400;
+            layerScrollView.style.maxHeight = 300;
             root.Add(layerScrollView);
 
             RefreshGridManager();
+            UpdateModeDisplay();
 
             return root;
         }
 
+        private void CreateFluidSettings()
+        {
+            var fluidLabel = new Label("Fluid Settings");
+            fluidLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            fluidLabel.style.color = Color.white;
+            fluidLabel.style.marginBottom = 5;
+            fluidSettingsContainer.Add(fluidLabel);
 
-        /// <summary>
-        /// Finds the active GridManager in the scene and updates the UI.
-        /// </summary>
+            // Fluid Amount
+            var amountLabel = new Label($"Amount: {fluidAmount}/7");
+            amountLabel.style.color = Color.white;
+
+            var amountSlider = new SliderInt(1, 7) { value = fluidAmount };
+            amountSlider.RegisterValueChangedCallback(evt =>
+            {
+                fluidAmount = evt.newValue;
+                amountLabel.text = $"Amount: {fluidAmount}/7";
+            });
+
+            fluidSettingsContainer.Add(amountLabel);
+            fluidSettingsContainer.Add(amountSlider);
+
+            // Source Toggle
+            var sourceToggle = new Toggle("Place as Source") { value = placeAsSource };
+            sourceToggle.style.marginTop = 5;
+            sourceToggle.RegisterValueChangedCallback(evt => { placeAsSource = evt.newValue; });
+            fluidSettingsContainer.Add(sourceToggle);
+
+            // Clear Fluids Button
+            var clearFluidsBtn = new Button(() => ClearAllFluids()) { text = "Clear All Fluids" };
+            clearFluidsBtn.style.marginTop = 10;
+            clearFluidsBtn.style.backgroundColor = new Color(0.5f, 0.2f, 0.2f);
+            fluidSettingsContainer.Add(clearFluidsBtn);
+        }
+
+        private void SetPaintMode(PaintMode mode)
+        {
+            paintMode = mode;
+            UpdateModeDisplay();
+            RefreshUI();
+        }
+
+        private void UpdateModeDisplay()
+        {
+            if (terrainSettingsContainer != null && fluidSettingsContainer != null)
+            {
+                terrainSettingsContainer.style.display =
+                    paintMode == PaintMode.Terrain ? DisplayStyle.Flex : DisplayStyle.None;
+                fluidSettingsContainer.style.display =
+                    paintMode == PaintMode.Fluid ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+        }
+
         private void RefreshGridManager()
         {
-            // Find GridManager in selection or scene
             if (Selection.activeGameObject != null)
                 activeGridManager = Selection.activeGameObject.GetComponent<GridManager>();
 
-            if (activeGridManager == null) activeGridManager = Object.FindAnyObjectByType<GridManager>();
+            if (activeGridManager == null)
+                activeGridManager = Object.FindAnyObjectByType<GridManager>();
 
             RefreshUI();
         }
 
-        /// <summary>
-        /// Refreshes the entire UI based on current GridManager state.
-        /// </summary>
         private void RefreshUI()
         {
             if (layerScrollView == null)
@@ -145,14 +248,20 @@ namespace CozyWorldGeneration.Editor
                 return;
             }
 
-            // Display grid info
             var gridInfoLabel = new Label($"Grid: {activeGridManager.Width}x{activeGridManager.Height}");
             gridInfoLabel.style.fontSize = 11;
             gridInfoLabel.style.marginBottom = 10;
             gridInfoLabel.style.color = new Color(0.8f, 0.8f, 0.8f);
             layerScrollView.Add(gridInfoLabel);
 
-            // World Layers Section
+            if (paintMode == PaintMode.Terrain)
+                RefreshTerrainLayers();
+            else
+                RefreshFluidTypes();
+        }
+
+        private void RefreshTerrainLayers()
+        {
             if (activeGridManager.WorldLayerCollection != null &&
                 activeGridManager.WorldLayerCollection.Layers.Count > 0)
             {
@@ -172,7 +281,6 @@ namespace CozyWorldGeneration.Editor
                     }
             }
 
-            // Selected layer info
             if (selectedLayer != null)
             {
                 var selectedInfoLabel = new Label($"Active: {selectedLayer.LayerName}");
@@ -184,9 +292,53 @@ namespace CozyWorldGeneration.Editor
             }
         }
 
-        /// <summary>
-        /// Creates a button element for a layer with clear functionality.
-        /// </summary>
+        private void RefreshFluidTypes()
+        {
+            var fluidTypesLabel = new Label("Fluid Types");
+            fluidTypesLabel.style.fontSize = 12;
+            fluidTypesLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            fluidTypesLabel.style.marginTop = 5;
+            fluidTypesLabel.style.marginBottom = 5;
+            fluidTypesLabel.style.color = Color.white;
+            layerScrollView.Add(fluidTypesLabel);
+
+            // Find all FluidType assets
+            var guids = AssetDatabase.FindAssets("t:FluidType");
+
+            if (guids.Length == 0)
+            {
+                var noFluidsLabel =
+                    new Label(
+                        "No FluidType assets found.\nCreate one via:\nCreate > Cozy World Generation > Fluid Type");
+                noFluidsLabel.style.color = new Color(0.7f, 0.7f, 0.7f);
+                noFluidsLabel.style.whiteSpace = WhiteSpace.Normal;
+                layerScrollView.Add(noFluidsLabel);
+                return;
+            }
+
+            foreach (var guid in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var fluidType = AssetDatabase.LoadAssetAtPath<FluidType>(path);
+
+                if (fluidType != null)
+                {
+                    var fluidElement = CreateFluidTypeButton(fluidType);
+                    layerScrollView.Add(fluidElement);
+                }
+            }
+
+            if (selectedFluidType != null)
+            {
+                var selectedInfoLabel = new Label($"Active: {selectedFluidType.FluidName}");
+                selectedInfoLabel.style.fontSize = 11;
+                selectedInfoLabel.style.marginTop = 10;
+                selectedInfoLabel.style.color = new Color(0.5f, 0.8f, 1f);
+                selectedInfoLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+                layerScrollView.Add(selectedInfoLabel);
+            }
+        }
+
         private VisualElement CreateLayerButton(WorldLayer layer)
         {
             var container = new VisualElement();
@@ -194,24 +346,21 @@ namespace CozyWorldGeneration.Editor
             container.style.marginBottom = 3;
             container.style.justifyContent = Justify.SpaceBetween;
 
-            // Layer selection button
             var layerButton = new Button(() => SelectLayer(layer));
             layerButton.style.flexGrow = 1;
             layerButton.style.marginRight = 3;
 
-            // Visual styling based on layer state
             if (layer == selectedLayer)
                 layerButton.style.backgroundColor = new Color(0.3f, 0.5f, 0.3f);
             else if (!layer.IsEnabled)
                 layerButton.style.backgroundColor = new Color(0.3f, 0.2f, 0.2f);
-            else if (layer.LockFromPaint) layerButton.style.backgroundColor = new Color(0.4f, 0.3f, 0.2f);
+            else if (layer.LockFromPaint)
+                layerButton.style.backgroundColor = new Color(0.4f, 0.3f, 0.2f);
 
-            // Button content
             var buttonContent = new VisualElement();
             buttonContent.style.flexDirection = FlexDirection.Row;
             buttonContent.style.alignItems = Align.Center;
 
-            // Color indicator
             var colorBox = new VisualElement();
             colorBox.style.width = 16;
             colorBox.style.height = 16;
@@ -222,12 +371,10 @@ namespace CozyWorldGeneration.Editor
             colorBox.style.borderTopLeftRadius = 2;
             colorBox.style.borderTopRightRadius = 2;
 
-            // Layer name
             var nameLabel = new Label(layer.LayerName);
             nameLabel.style.color = Color.white;
             nameLabel.style.fontSize = 10;
 
-            // Status icons
             var statusText = "";
             if (!layer.IsEnabled) statusText += " [OFF]";
             if (layer.LockFromPaint) statusText += " 🔒";
@@ -244,11 +391,7 @@ namespace CozyWorldGeneration.Editor
             buttonContent.Add(nameLabel);
             layerButton.Add(buttonContent);
 
-            // Clear button
-            var clearButton = new Button(() => ClearLayerData(layer))
-            {
-                text = "Clear"
-            };
+            var clearButton = new Button(() => ClearLayerData(layer)) { text = "Clear" };
             clearButton.style.width = 50;
             clearButton.style.fontSize = 9;
 
@@ -258,9 +401,45 @@ namespace CozyWorldGeneration.Editor
             return container;
         }
 
-        /// <summary>
-        /// Selects a layer for painting.
-        /// </summary>
+        private VisualElement CreateFluidTypeButton(FluidType fluidType)
+        {
+            var container = new VisualElement();
+            container.style.flexDirection = FlexDirection.Row;
+            container.style.marginBottom = 3;
+
+            var fluidButton = new Button(() => SelectFluidType(fluidType));
+            fluidButton.style.flexGrow = 1;
+
+            if (fluidType == selectedFluidType)
+                fluidButton.style.backgroundColor = new Color(0.2f, 0.4f, 0.5f);
+
+            var buttonContent = new VisualElement();
+            buttonContent.style.flexDirection = FlexDirection.Row;
+            buttonContent.style.alignItems = Align.Center;
+
+            var colorBox = new VisualElement();
+            colorBox.style.width = 16;
+            colorBox.style.height = 16;
+            colorBox.style.backgroundColor = fluidType.Color;
+            colorBox.style.marginRight = 5;
+            colorBox.style.borderBottomLeftRadius = 2;
+            colorBox.style.borderBottomRightRadius = 2;
+            colorBox.style.borderTopLeftRadius = 2;
+            colorBox.style.borderTopRightRadius = 2;
+
+            var nameLabel = new Label(fluidType.FluidName);
+            nameLabel.style.color = Color.white;
+            nameLabel.style.fontSize = 10;
+
+            buttonContent.Add(colorBox);
+            buttonContent.Add(nameLabel);
+            fluidButton.Add(buttonContent);
+
+            container.Add(fluidButton);
+
+            return container;
+        }
+
         private void SelectLayer(WorldLayer layer)
         {
             if (!layer.IsEnabled)
@@ -279,13 +458,16 @@ namespace CozyWorldGeneration.Editor
 
             selectedLayer = layer;
             RefreshUI();
-
             Debug.Log($"Selected layer for painting: {layer.LayerName}");
         }
 
-        /// <summary>
-        /// Clears all painted data from a layer.
-        /// </summary>
+        private void SelectFluidType(FluidType fluidType)
+        {
+            selectedFluidType = fluidType;
+            RefreshUI();
+            Debug.Log($"Selected fluid type: {fluidType.FluidName}");
+        }
+
         private void ClearLayerData(WorldLayer layer)
         {
             if (EditorUtility.DisplayDialog("Clear Layer",
@@ -294,7 +476,8 @@ namespace CozyWorldGeneration.Editor
                 layer.ClearPreviewTexture();
                 EditorUtility.SetDirty(layer);
 
-                if (activeGridManager == null) RefreshGridManager();
+                if (activeGridManager == null)
+                    RefreshGridManager();
 
                 if (activeGridManager != null && activeGridManager.WorldGrid != null)
                 {
@@ -317,20 +500,21 @@ namespace CozyWorldGeneration.Editor
             }
         }
 
-        /// <summary>
-        /// Gets the currently selected layer for painting.
-        /// </summary>
-        public WorldLayer GetSelectedLayer()
+        private void ClearAllFluids()
         {
-            return selectedLayer;
-        }
+            if (activeGridManager?.FluidSimulator?.fluidGrid == null)
+            {
+                Debug.LogWarning("No FluidSimulator found");
+                return;
+            }
 
-        /// <summary>
-        /// Gets the active GridManager.
-        /// </summary>
-        public GridManager GetActiveGridManager()
-        {
-            return activeGridManager;
+            if (EditorUtility.DisplayDialog("Clear All Fluids",
+                    "Clear all fluid data?", "Yes", "No"))
+            {
+                activeGridManager.FluidSimulator.fluidGrid.Clear();
+                SceneView.RepaintAll();
+                Debug.Log("[Overlay] Cleared all fluids");
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using CozyWorldGeneration.Core;
+using CozyWorldGeneration.Data.Fluids;
 using CozyWorldGeneration.Data.Layers;
 using UnityEditor;
 using UnityEditor.Overlays;
@@ -151,6 +152,51 @@ namespace CozyWorldGeneration.Editor
         public static bool ClearAllLayersValidate()
         {
             return GameObject.FindAnyObjectByType<GridManager>() != null;
+        }
+
+        [MenuItem(MENU_PATH + "Create Fluid Type", false, 12)]
+        public static void CreateFluidType()
+        {
+            var fluidType = ScriptableObject.CreateInstance<FluidType>();
+
+            var path = EditorUtility.SaveFilePanelInProject(
+                "Create Fluid Type",
+                "NewFluidType",
+                "asset",
+                "Create a new Fluid Type asset"
+            );
+
+            if (!string.IsNullOrEmpty(path))
+            {
+                AssetDatabase.CreateAsset(fluidType, path);
+                AssetDatabase.SaveAssets();
+                Selection.activeObject = fluidType;
+
+                Debug.Log($"Created Fluid Type: {path}");
+            }
+        }
+
+        [MenuItem(MENU_PATH + "Clear All Fluids", false, 31)]
+        public static void ClearAllFluids()
+        {
+            var gridManager = GameObject.FindAnyObjectByType<GridManager>();
+
+            if (gridManager?.FluidSimulator?.fluidGrid == null)
+            {
+                EditorUtility.DisplayDialog("No FluidSimulator",
+                    "No FluidSimulator found in scene", "OK");
+                return;
+            }
+
+            if (!EditorUtility.DisplayDialog("Clear All Fluids",
+                    "This will clear ALL fluid data. Continue?",
+                    "Yes", "No"))
+                return;
+
+            gridManager.FluidSimulator.fluidGrid.Clear();
+            SceneView.RepaintAll();
+
+            Debug.Log("Cleared all fluids");
         }
     }
 }

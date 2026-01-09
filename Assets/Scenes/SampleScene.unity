@@ -266,6 +266,7 @@ GameObject:
   m_Component:
   - component: {fileID: 408128536}
   - component: {fileID: 408128537}
+  - component: {fileID: 408128538}
   m_Layer: 0
   m_Name: GridManager
   m_TagString: Untagged
@@ -304,6 +305,9 @@ MonoBehaviour:
   gridHeight: 20
   gridMaxLevels: 10
   tileSize: 1
+  enableFluids: 1
+  fluidTickRate: 10
+  maxFluidLevels: 10
   worldLayerCollection:
     guid: 2115217d-28cb-430c-a0e6-976331b481ca
     collectionName: World Layers
@@ -325,6 +329,21 @@ MonoBehaviour:
   drawVisualGrid: 1
   worldGridColor: {r: 0.95199996, g: 0.95199996, b: 0.95199996, a: 1}
   visualGridColor: {r: 0.291, g: 0.291, b: 0.291, a: 1}
+  drawFluids: 1
+--- !u!114 &408128538
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 408128534}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fe1a47a9bd2440f9abaac47380b2973, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CozyWorldGeneration.Core.Fluids.FluidSimulator
+  tickRate: 5
+  simulateInEditor: 1
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace CozyWorldGeneration.Core
@@ -14,6 +15,8 @@ namespace CozyWorldGeneration.Core
         public int Width { get; protected set; }
         public int Height { get; protected set; }
         public int MaxLevels { get; protected set; }
+        public bool SuppressEvents { get; set; } = false;
+
 
         protected Grid3D(int width, int height, int maxLevels)
         {
@@ -82,6 +85,65 @@ namespace CozyWorldGeneration.Core
         public bool HasTile(Vector3Int position)
         {
             return tiles.ContainsKey(position);
+        }
+
+        public bool HasTile(Vector2Int position, int level)
+        {
+            return HasTile(position.x, position.y, level);
+        }
+
+        /// <summary>
+        /// Gets the four cardinal neighbours (up, down, left, right) of a position.
+        /// as well as the above and below tile.
+        /// Only returns neighbours that exist and are within grid bounds.
+        /// </summary>
+        public List<T> GetCardinalNeighbours(int x, int y, int level)
+        {
+            var neighbours = new List<T>(6);
+            Vector3Int[] directions =
+            {
+                new(0, 1, 0), // Forward
+                new(1, 0, 0), // Right
+                new(0, -1, 0), // Back
+                new(-1, 0, 0), // Left
+                new(0, 0, 1), // Up
+                new(0, 0, -1) // Down
+            };
+
+            neighbours.AddRange(from dir in directions
+                let nx = x + dir.x
+                let ny = y + dir.y
+                let nz = level + dir.z
+                select GetTile(nx, ny, nz)
+                into neighbour
+                where neighbour != null
+                select neighbour);
+
+            return neighbours;
+        }
+
+        public List<Vector3Int> GetAllCardinalNeighbours(int x, int y, int level)
+        {
+            Vector3Int[] directions =
+            {
+                new(0, 1, 0), // Forward
+                new(1, 0, 0), // Right
+                new(0, -1, 0), // Back
+                new(-1, 0, 0), // Left
+                new(0, 0, -1), // Down
+                new(0, 0, 1) // Up
+            };
+
+            return (from dir in directions
+                let nx = x + dir.x
+                let ny = y + dir.y
+                let nz = level + dir.z
+                select new Vector3Int(nx, ny, nz)).ToList();
+        }
+
+        public List<Vector3Int> GetAllCardinalNeighbours(Vector3Int position)
+        {
+            return GetAllCardinalNeighbours(position.x, position.y, position.z);
         }
 
         /// <summary>

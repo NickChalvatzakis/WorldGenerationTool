@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace CozyWorldGeneration.Core
 {
     /// <summary>
     /// Generic base class for all grid types in the system.
-    /// Handles spatial logic, bounds checking, and neighbor queries.
+    /// Handles spatial logic, bounds checking, and neighbour queries.
     /// Uses a Dictionary for efficient sparse storage.
     /// </summary>
     /// <typeparam name="T">The tile type. Must be a reference type (class).</typeparam>
@@ -103,12 +104,12 @@ namespace CozyWorldGeneration.Core
         }
 
         /// <summary>
-        /// Gets the four cardinal neighbors (up, down, left, right) of a position.
-        /// Only returns neighbors that exist and are within grid bounds.
+        /// Gets the four cardinal neighbours (up, down, left, right) of a position.
+        /// Only returns neighbours that exist and are within grid bounds.
         /// </summary>
-        public List<T> GetCardinalNeighbors(int x, int y)
+        public List<T> GetCardinalNeighbours(int x, int y)
         {
-            var neighbors = new List<T>(4);
+            var neighbours = new List<T>(4);
 
             // Up, Right, Down, Left
             Vector2Int[] directions =
@@ -119,24 +120,23 @@ namespace CozyWorldGeneration.Core
                 new(-1, 0) // Left
             };
 
-            foreach (var dir in directions)
-            {
-                var nx = x + dir.x;
-                var ny = y + dir.y;
+            neighbours.AddRange(from dir in directions
+                let nx = x + dir.x
+                let ny = y + dir.y
+                select GetTile(nx, ny)
+                into neighbour
+                where neighbour != null
+                select neighbour);
 
-                var neighbor = GetTile(nx, ny);
-                if (neighbor != null) neighbors.Add(neighbor);
-            }
-
-            return neighbors;
+            return neighbours;
         }
 
         /// <summary>
-        /// Gets the four cardinal neighbors of a position.
+        /// Gets the four cardinal neighbours of a position.
         /// </summary>
-        public List<T> GetCardinalNeighbors(Vector2Int position)
+        public List<T> GetCardinalNeighbours(Vector2Int position)
         {
-            return GetCardinalNeighbors(position.x, position.y);
+            return GetCardinalNeighbours(position.x, position.y);
         }
 
         /// <summary>
