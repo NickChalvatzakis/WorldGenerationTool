@@ -41,6 +41,9 @@ namespace CozyWorldGeneration.Editor
         {
             base.OnWillBeDeactivated();
             Undo.undoRedoPerformed -= OnUndoRedoPerformed;
+
+            // Serialize any unsaved texture data when tool is deactivated
+            SerializeAllModifiedLayers();
         }
 
         /// <summary>
@@ -119,14 +122,41 @@ namespace CozyWorldGeneration.Editor
         {
             if (modifiedLayersInCurrentStroke.Count > 0)
             {
+                // ✅ NEW: Serialize texture data for all modified layers
+                // This is when we actually encode the PNG (once per stroke, not per pixel!)
+                foreach (var layer in modifiedLayersInCurrentStroke) layer.SerializeTextureData();
+
                 // Collapse all Undo.RecordObject calls into one undo operation
                 Undo.CollapseUndoOperations(undoGroup);
 
                 // Mark all modified layers as dirty so Unity saves them
                 foreach (var layer in modifiedLayersInCurrentStroke) EditorUtility.SetDirty(layer);
+
+                Debug.Log(
+                    $"[GridPainterTool] Paint stroke complete - serialized {modifiedLayersInCurrentStroke.Count} layer(s)");
             }
 
             modifiedLayersInCurrentStroke.Clear();
+        }
+
+        /// <summary>
+        /// Serializes all currently modified layers (safety method)
+        /// </summary>
+        private void SerializeAllModifiedLayers()
+        {
+            if (modifiedLayersInCurrentStroke.Count > 0)
+            {
+                Debug.Log(
+                    $"[GridPainterTool] Serializing {modifiedLayersInCurrentStroke.Count} layer(s) on tool deactivation");
+
+                foreach (var layer in modifiedLayersInCurrentStroke)
+                {
+                    layer.SerializeTextureData();
+                    EditorUtility.SetDirty(layer);
+                }
+
+                modifiedLayersInCurrentStroke.Clear();
+            }
         }
 
         /// <summary>
@@ -182,12 +212,6 @@ namespace CozyWorldGeneration.Editor
                 return;
             }
 
-            // TODO: change what layer you control / the layer level of the world grid
-            // if (e.type == EventType.ScrollWheel && e.shift && e.control)
-            // {
-            //     gridManager.WorldLayerCollection.Get
-            // }
-
             switch (e.type)
             {
                 case EventType.MouseDown:
@@ -230,13 +254,13 @@ namespace CozyWorldGeneration.Editor
                     if (e.button == 0)
                     {
                         isPainting = false;
-                        EndPaintStroke(); // Collapse all changes into one undo
+                        EndPaintStroke(); // ← This now serializes texture data!
                         GUIUtility.hotControl = 0;
                     }
                     else if (e.button == 1)
                     {
                         isErasing = false;
-                        EndPaintStroke(); // Collapse all changes into one undo
+                        EndPaintStroke(); // ← This now serializes texture data!
                         GUIUtility.hotControl = 0;
                     }
 
@@ -316,12 +340,10 @@ namespace CozyWorldGeneration.Editor
         {
             RecordLayerForUndo(selectedLayer);
 
+            // Paint the pixel (does NOT serialize yet - that happens in EndPaintStroke)
             selectedLayer.PaintPixel(x, y, true);
             gridManager.WorldGrid.PlaceTile(x, y, selectedLayer);
 
-            // Note: SetDirty is also called in EndPaintStroke, but calling here too
-            // ensures the layer is marked dirty even if something goes wrong
-            EditorUtility.SetDirty(selectedLayer);
             SceneView.RepaintAll();
         }
 
@@ -339,10 +361,10 @@ namespace CozyWorldGeneration.Editor
             {
                 RecordLayerForUndo(selectedLayer);
 
+                // Erase the pixel (does NOT serialize yet - that happens in EndPaintStroke)
                 selectedLayer.PaintPixel(x, y, false);
-                EditorUtility.SetDirty(selectedLayer);
-
                 gridManager.WorldGrid.RemoveTile(x, y, level);
+
                 SceneView.RepaintAll();
             }
         }
@@ -351,8 +373,6 @@ namespace CozyWorldGeneration.Editor
         {
             if (gridManager == null || gridManager.WorldGrid == null)
                 return;
-
-            Handles.color = Color.green;
 
             // Highlight hovered cell(s) based on brush size
             var hoveredPos = GetGridPositionFromMouse(Event.current.mousePosition);

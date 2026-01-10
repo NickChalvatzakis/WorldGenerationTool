@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using CozyWorldGeneration.Core;
+using CozyWorldGeneration.Core.SaveSystem;
 using CozyWorldGeneration.Data.Layers;
 using CozyWorldGeneration.Data.Tilesets;
 using UnityEditor;
@@ -17,7 +18,7 @@ namespace CozyWorldGeneration.Editor
         private GridManager gridManager;
         private Foldout worldLayersFoldout;
         private Foldout visualLayersFoldout;
-
+        private VisualElement saveListContainer;
 
         private void OnEnable()
         {
@@ -44,7 +45,6 @@ namespace CozyWorldGeneration.Editor
             RebuildWorldGridFromLayers();
             SceneView.RepaintAll();
         }
-
 
         private void RebuildWorldGridFromLayers()
         {
@@ -80,6 +80,7 @@ namespace CozyWorldGeneration.Editor
             root = new VisualElement();
 
             CreateGridSettingsSection();
+            CreateSaveLoadSection(); // ← NEW SECTION
             CreateLayerCollectionSection();
             CreateDebugSection();
 
@@ -121,6 +122,235 @@ namespace CozyWorldGeneration.Editor
             root.Add(gridSettingsFoldout);
         }
 
+        // ========== NEW SAVE/LOAD SECTION ==========
+        private void CreateSaveLoadSection()
+        {
+            var saveLoadFoldout = new Foldout { text = "Save / Load", value = true };
+            saveLoadFoldout.style.marginTop = 10;
+            saveLoadFoldout.style.backgroundColor = new Color(0.2f, 0.3f, 0.2f, 0.3f);
+            saveLoadFoldout.style.paddingTop = 5;
+            saveLoadFoldout.style.paddingBottom = 5;
+            saveLoadFoldout.style.paddingLeft = 5;
+            saveLoadFoldout.style.paddingRight = 5;
+            saveLoadFoldout.style.borderBottomLeftRadius = 4;
+            saveLoadFoldout.style.borderBottomRightRadius = 4;
+            saveLoadFoldout.style.borderTopLeftRadius = 4;
+            saveLoadFoldout.style.borderTopRightRadius = 4;
+
+            // World Name Field
+            var worldNameField = new TextField("World Name")
+            {
+                value = serializedObject.FindProperty("worldName").stringValue
+            };
+            worldNameField.RegisterValueChangedCallback(evt =>
+            {
+                serializedObject.FindProperty("worldName").stringValue = evt.newValue;
+                serializedObject.ApplyModifiedProperties();
+            });
+            saveLoadFoldout.Add(worldNameField);
+
+            // Auto Load Toggle
+            var autoLoadToggle = new Toggle("Auto Load On Start")
+            {
+                value = serializedObject.FindProperty("autoLoadOnStart").boolValue
+            };
+            autoLoadToggle.RegisterValueChangedCallback(evt =>
+            {
+                serializedObject.FindProperty("autoLoadOnStart").boolValue = evt.newValue;
+                serializedObject.ApplyModifiedProperties();
+            });
+            saveLoadFoldout.Add(autoLoadToggle);
+
+            // Format Selection
+            var formatField = new EnumField("Save Format", WorldSaveManager.SaveFormat.JSON);
+            formatField.value = (WorldSaveManager.SaveFormat)serializedObject.FindProperty("saveFormat").enumValueIndex;
+            formatField.RegisterValueChangedCallback(evt =>
+            {
+                serializedObject.FindProperty("saveFormat").enumValueIndex =
+                    (int)(WorldSaveManager.SaveFormat)evt.newValue;
+                serializedObject.ApplyModifiedProperties();
+            });
+            saveLoadFoldout.Add(formatField);
+
+            // Buttons Container
+            var buttonsContainer = new VisualElement();
+            buttonsContainer.style.flexDirection = FlexDirection.Row;
+            buttonsContainer.style.marginTop = 5;
+            buttonsContainer.style.marginBottom = 5;
+
+            var saveBtn = new Button(() => SaveWorld())
+            {
+                text = "Save World"
+            };
+            saveBtn.style.flexGrow = 1;
+            saveBtn.style.height = 30;
+            saveBtn.style.marginRight = 5;
+            saveBtn.style.backgroundColor = new Color(0.2f, 0.6f, 0.2f);
+
+            var loadBtn = new Button(() => LoadWorld())
+            {
+                text = "Load World"
+            };
+            loadBtn.style.flexGrow = 1;
+            loadBtn.style.height = 30;
+            loadBtn.style.backgroundColor = new Color(0.2f, 0.4f, 0.6f);
+
+            buttonsContainer.Add(saveBtn);
+            buttonsContainer.Add(loadBtn);
+            saveLoadFoldout.Add(buttonsContainer);
+
+            // Separator
+            var separator = new VisualElement();
+            separator.style.height = 1;
+            separator.style.backgroundColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            separator.style.marginTop = 5;
+            separator.style.marginBottom = 5;
+            saveLoadFoldout.Add(separator);
+
+            // Available Saves Label
+            var savesLabel = new Label("Available Saves:");
+            savesLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            savesLabel.style.marginBottom = 5;
+            saveLoadFoldout.Add(savesLabel);
+
+            // Save List Container (will be populated dynamically)
+            saveListContainer = new VisualElement();
+            saveLoadFoldout.Add(saveListContainer);
+
+            // Refresh Button
+            var refreshBtn = new Button(() => RefreshSaveList())
+            {
+                text = "🔄 Refresh List"
+            };
+            refreshBtn.style.marginTop = 5;
+            saveLoadFoldout.Add(refreshBtn);
+
+            // Initial population
+            RefreshSaveList();
+
+            root.Add(saveLoadFoldout);
+        }
+
+        private void SaveWorld()
+        {
+            var worldName = serializedObject.FindProperty("worldName").stringValue;
+
+            if (string.IsNullOrEmpty(worldName))
+            {
+                EditorUtility.DisplayDialog("Error", "World name cannot be empty!", "OK");
+                return;
+            }
+
+            gridManager.SaveWorld();
+
+            EditorUtility.DisplayDialog("Save Complete",
+                $"World '{worldName}' has been saved successfully!", "OK");
+
+            RefreshSaveList();
+        }
+
+        private void LoadWorld()
+        {
+            var worldName = serializedObject.FindProperty("worldName").stringValue;
+
+            if (string.IsNullOrEmpty(worldName))
+            {
+                EditorUtility.DisplayDialog("Error", "World name cannot be empty!", "OK");
+                return;
+            }
+
+            if (EditorUtility.DisplayDialog("Load World",
+                    $"Load world '{worldName}'?\n\nThis will replace the current grid data.", "Load", "Cancel"))
+            {
+                gridManager.LoadWorld();
+
+                // Refresh the UI
+                RefreshWorldLayers();
+                SceneView.RepaintAll();
+
+                EditorUtility.DisplayDialog("Load Complete",
+                    $"World '{worldName}' has been loaded successfully!", "OK");
+            }
+        }
+
+        private void RefreshSaveList()
+        {
+            saveListContainer.Clear();
+
+            var saves = gridManager.GetAvailableSaves();
+
+            if (saves.Length == 0)
+            {
+                var noSavesLabel = new Label("No saved worlds found.");
+                noSavesLabel.style.color = new Color(0.7f, 0.7f, 0.7f);
+                noSavesLabel.style.unityFontStyleAndWeight = FontStyle.Italic;
+                saveListContainer.Add(noSavesLabel);
+                return;
+            }
+
+            foreach (var saveName in saves)
+            {
+                var saveRow = new VisualElement();
+                saveRow.style.flexDirection = FlexDirection.Row;
+                saveRow.style.marginBottom = 2;
+                saveRow.style.backgroundColor = new Color(0.3f, 0.3f, 0.3f, 0.3f);
+                saveRow.style.paddingTop = 3;
+                saveRow.style.paddingBottom = 3;
+                saveRow.style.paddingLeft = 5;
+                saveRow.style.paddingRight = 5;
+                saveRow.style.borderBottomLeftRadius = 3;
+                saveRow.style.borderBottomRightRadius = 3;
+                saveRow.style.borderTopLeftRadius = 3;
+                saveRow.style.borderTopRightRadius = 3;
+
+                var nameLabel = new Label($"📁 {saveName}");
+                nameLabel.style.flexGrow = 1;
+                nameLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
+
+                var loadBtn = new Button(() =>
+                {
+                    if (EditorUtility.DisplayDialog("Load World",
+                            $"Load world '{saveName}'?\n\nThis will replace the current grid data.", "Load", "Cancel"))
+                    {
+                        gridManager.LoadWorld(saveName);
+                        RefreshWorldLayers();
+                        SceneView.RepaintAll();
+                    }
+                })
+                {
+                    text = "Load"
+                };
+                loadBtn.style.width = 50;
+                loadBtn.style.height = 20;
+                loadBtn.style.backgroundColor = new Color(0.2f, 0.4f, 0.6f);
+
+                var deleteBtn = new Button(() =>
+                {
+                    if (EditorUtility.DisplayDialog("Delete World",
+                            $"Delete world '{saveName}'?\n\nThis action cannot be undone!", "Delete", "Cancel"))
+                    {
+                        var format =
+                            (WorldSaveManager.SaveFormat)serializedObject.FindProperty("saveFormat").enumValueIndex;
+                        WorldSaveManager.DeleteWorld(saveName, format);
+                        RefreshSaveList();
+                    }
+                })
+                {
+                    text = "✖"
+                };
+                deleteBtn.style.width = 30;
+                deleteBtn.style.height = 20;
+                deleteBtn.style.marginLeft = 5;
+                deleteBtn.style.backgroundColor = new Color(0.6f, 0.2f, 0.2f);
+
+                saveRow.Add(nameLabel);
+                saveRow.Add(loadBtn);
+                saveRow.Add(deleteBtn);
+
+                saveListContainer.Add(saveRow);
+            }
+        }
+
         private void CreateLayerCollectionSection()
         {
             // World Layers
@@ -146,7 +376,7 @@ namespace CozyWorldGeneration.Editor
                         RefreshWorldLayers();
                     }
 
-                    addExistingWorldLayer.SetValueWithoutNotify(null); // Reset field
+                    addExistingWorldLayer.SetValueWithoutNotify(null);
                 }
             });
             worldLayersFoldout.Add(addExistingWorldLayer);
@@ -341,7 +571,6 @@ namespace CozyWorldGeneration.Editor
 
             var refreshTextureBtn = new Button(() =>
             {
-                // layer.InitializePreviewTexture(gridManager.Width, gridManager.Height);
                 layer.ForceRebuildTexture(gridManager.Width, gridManager.Height);
 
                 textureImage.image = layer.PreviewTexture;
@@ -380,7 +609,7 @@ namespace CozyWorldGeneration.Editor
             // Header row with foldout and X button
             var header = new VisualElement();
             header.style.flexDirection = FlexDirection.Row;
-            header.style.alignItems = Align.FlexStart; // Align to top
+            header.style.alignItems = Align.FlexStart;
 
             var foldout = new Foldout { text = layer.LayerName, value = layer.foldoutState };
             foldout.style.flexGrow = 1;
@@ -586,7 +815,7 @@ namespace CozyWorldGeneration.Editor
                     ClearTilesFromLayerInManager(layer);
 
                 SceneView.RepaintAll();
-                RefreshWorldLayers(); // Refresh to update texture preview
+                RefreshWorldLayers();
             }
         }
 
@@ -608,7 +837,6 @@ namespace CozyWorldGeneration.Editor
 
             Debug.Log($"[Editor] Cleared {tilesToRemove.Count} tiles from grid");
         }
-
 
         private void CreateDebugSection()
         {
@@ -644,16 +872,6 @@ namespace CozyWorldGeneration.Editor
                 serializedObject.ApplyModifiedProperties();
             });
 
-            // var drawDebugTileToggle = new Toggle("Draw Debug Tiles")
-            // {
-            //     value = serializedObject.FindProperty("drawDebugTiles").boolValue
-            // };
-            // drawDebugTileToggle.RegisterValueChangedCallback(evt =>
-            // {
-            //     serializedObject.FindProperty("drawDebugTiles").boolValue = evt.newValue;
-            //     serializedObject.ApplyModifiedProperties();
-            // });
-
             var worldGridColorPicker = new ColorField("World Grid Color")
             {
                 value = serializedObject.FindProperty("worldGridColor").colorValue
@@ -677,7 +895,6 @@ namespace CozyWorldGeneration.Editor
             debugFoldout.Add(drawGizmosToggle);
             debugFoldout.Add(drawWorldToggle);
             debugFoldout.Add(drawVisualToggle);
-            // debugFoldout.Add(drawDebugTileToggle);
             debugFoldout.Add(worldGridColorPicker);
             debugFoldout.Add(visualGridColorPicker);
 
