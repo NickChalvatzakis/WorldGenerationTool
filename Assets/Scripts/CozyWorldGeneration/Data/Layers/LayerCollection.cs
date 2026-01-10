@@ -64,7 +64,7 @@ namespace CozyWorldGeneration
             if (layer != null && !layers.Contains(layer))
             {
                 layers.Add(layer);
-                ToolEvents.RaiseLayerAdded(layer);
+                ToolEvents.TriggerLayerAdded(layer);
             }
         }
 
@@ -76,7 +76,7 @@ namespace CozyWorldGeneration
             if (layer != null)
             {
                 layers.Remove(layer);
-                ToolEvents.RaiseLayerRemoved(layer);
+                ToolEvents.TriggerLayerRemoved(layer);
             }
         }
 
