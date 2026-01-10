@@ -324,6 +324,9 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 2fe9b7e7f74653c4db4985a867f64098, type: 2}
     - {fileID: 11400000, guid: c61cf3823a6c0334eb29869d2f404c50, type: 2}
     - {fileID: 11400000, guid: 75da9db74202d0e45a2673b65fd52c1f, type: 2}
+  worldName: Testing
+  autoLoadOnStart: 1
+  saveFormat: 0
   drawGizmos: 1
   drawWorldGrid: 1
   drawVisualGrid: 1

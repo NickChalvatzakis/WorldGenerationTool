@@ -3,6 +3,7 @@ using CozyWorldGeneration.Core.DualGrid;
 using CozyWorldGeneration.Core.Enums;
 using CozyWorldGeneration.Core.Events;
 using CozyWorldGeneration.Core.Fluids;
+using CozyWorldGeneration.Core.SaveSystem;
 using CozyWorldGeneration.Data.Layers;
 using UnityEngine;
 
@@ -30,6 +31,11 @@ namespace CozyWorldGeneration.Core
         private WorldLayerCollection worldLayerCollection;
 
         [SerializeField] private VisualLayerCollection visualLayerCollection;
+
+        [Header("Save/Load")] [SerializeField] private string worldName = "MyWorld";
+        [SerializeField] private bool autoLoadOnStart = false;
+        [SerializeField] private WorldSaveManager.SaveFormat saveFormat = WorldSaveManager.SaveFormat.JSON;
+
 
         [Header("Debug")] [SerializeField] private bool drawGizmos = true;
         [SerializeField] private bool drawWorldGrid = true;
@@ -71,11 +77,58 @@ namespace CozyWorldGeneration.Core
             FluidSimulator.Initialize(gridWidth, gridHeight, gridMaxLevels);
         }
 
+        private void Start()
+        {
+            if (autoLoadOnStart && !string.IsNullOrEmpty(worldName)) LoadWorld(worldName);
+        }
+
+        public void LoadWorld(string saveName)
+        {
+            var saveData = WorldSaveManager.LoadWorld(saveName, saveFormat);
+
+            if (saveData != null)
+            {
+                WorldSaveManager.ApplySaveData(this, saveData);
+                worldName = saveName;
+            }
+        }
+
+
+        [ContextMenu("Load World")]
+        public void LoadWorld()
+        {
+            LoadWorld(worldName);
+        }
+
+
+        [ContextMenu("Save World")]
+        public void SaveWorld()
+        {
+            if (string.IsNullOrEmpty(worldName))
+            {
+                Debug.LogError("[GridManager] World name is empty!");
+                return;
+            }
+
+            WorldSaveManager.SaveWorld(this, worldName, saveFormat);
+        }
+
+        public void SaveWorldAs(string saveName)
+        {
+            worldName = saveName;
+            SaveWorld();
+        }
+
+        public string[] GetAvailableSaves()
+        {
+            return WorldSaveManager.GetAvailableSaves(saveFormat);
+        }
+
+
         private void OnEnable()
         {
             SubscribeToEvents();
 #if UNITY_EDITOR
-            if (enableFluids && FluidSimulator == null) InitializeFluids();
             RebuildFromLayerData();
 #endif
         }

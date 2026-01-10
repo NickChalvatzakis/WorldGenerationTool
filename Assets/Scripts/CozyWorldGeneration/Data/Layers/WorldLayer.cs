@@ -1,5 +1,4 @@
 ﻿using System;
-using CozyWorldGeneration.Core.Enums;
 using CozyWorldGeneration.Core.Events;
 using UnityEngine;
 
@@ -48,11 +47,44 @@ namespace CozyWorldGeneration.Data.Layers
             get
             {
                 // Lazy initialization - rebuild from serialized data if needed
-                if (previewTexture == null && textureData != null && textureData.Length > 0) RebuildTextureFromData();
+                if (previewTexture == null && textureData != null && textureData.Length > 0)
+                    RebuildTextureFromData();
                 return previewTexture;
             }
         }
 
+        public Color LayerColor
+        {
+            get => layerColor;
+            set => layerColor = value;
+        }
+
+        public int LayerLevel
+        {
+            get => layerLevel;
+            set => layerLevel = value;
+        }
+
+        public bool LockFromPaint
+        {
+            get => lockFromPaint;
+            set => lockFromPaint = value;
+        }
+
+        private void OnEnable()
+        {
+            // Ensure GUID exists
+            if (string.IsNullOrEmpty(guid))
+                guid = Guid.NewGuid().ToString();
+
+            // Rebuild texture from serialized data if available
+            if (textureData != null && textureData.Length > 0)
+                RebuildTextureFromData();
+        }
+
+        /// <summary>
+        /// Rebuilds the preview texture from serialized PNG data
+        /// </summary>
         public void RebuildTextureFromData()
         {
             if (textureData == null || textureData.Length == 0) return;
@@ -74,9 +106,6 @@ namespace CozyWorldGeneration.Data.Layers
             if (textureData != null && textureData.Length > 0)
                 // Has serialized data - rebuild from it
                 RebuildTextureFromData();
-            else if (previewTexture != null && previewTexture.width > 0 && previewTexture.height > 0)
-                // Has stored dimensions - create empty texture
-                InitializePreviewTexture(previewTexture.width, previewTexture.height);
             else if (fallbackWidth > 0 && fallbackHeight > 0)
                 // Use fallback dimensions from GridManager
                 InitializePreviewTexture(fallbackWidth, fallbackHeight);
@@ -84,36 +113,6 @@ namespace CozyWorldGeneration.Data.Layers
                 Debug.LogWarning($"[WorldLayer] Cannot rebuild texture for '{layerName}' - no dimensions available");
         }
 
-
-        public Color LayerColor
-        {
-            get => layerColor;
-            set => layerColor = value;
-        }
-
-
-        public int LayerLevel
-        {
-            get => layerLevel;
-            set => layerLevel = value;
-        }
-
-        public bool LockFromPaint
-        {
-            get => lockFromPaint;
-            set => lockFromPaint = value;
-        }
-
-        private void OnEnable()
-        {
-            // Ensure GUID exists
-            if (string.IsNullOrEmpty(guid)) guid = Guid.NewGuid().ToString();
-            if (textureData != null && textureData.Length > 0) previewTexture.LoadImage(textureData);
-        }
-
-        /// <summary>
-        /// Initializes the preview texture based on grid size.
-        /// </summary>
         public void InitializePreviewTexture(int width, int height)
         {
             previewTexture = new Texture2D(width, height, TextureFormat.RGBA32, false);
@@ -121,17 +120,19 @@ namespace CozyWorldGeneration.Data.Layers
             ClearPreviewTexture();
         }
 
-        /// <summary>
-        /// Clears the preview texture to transparent.
-        /// </summary>
         public void ClearPreviewTexture()
         {
             if (previewTexture != null)
             {
                 var clearColors = new Color[previewTexture.width * previewTexture.height];
-                for (var i = 0; i < clearColors.Length; i++) clearColors[i] = Color.clear;
+                for (var i = 0; i < clearColors.Length; i++)
+                    clearColors[i] = Color.clear;
+
                 previewTexture.SetPixels(clearColors);
                 previewTexture.Apply();
+
+                // Serialize after clearing
+                SerializeTextureData();
 
                 // Trigger event through centralized system
                 ToolEvents.TriggerLayerCleared(this);
@@ -142,25 +143,22 @@ namespace CozyWorldGeneration.Data.Layers
             }
         }
 
-        /// <summary>
-        /// Paints a pixel at the specified grid position.
-        /// </summary>
         public void PaintPixel(int x, int y, bool paint = true)
         {
-            if (previewTexture != null && x >= 0 && x < previewTexture.width && y >= 0 && y < previewTexture.height)
+            if (previewTexture != null &&
+                x >= 0 && x < previewTexture.width &&
+                y >= 0 && y < previewTexture.height)
             {
                 previewTexture.SetPixel(x, y, paint ? layerColor : Color.clear);
                 previewTexture.Apply();
-                textureData = previewTexture.EncodeToPNG();
             }
         }
 
-        /// <summary>
-        /// Checks if a pixel is painted at the specified position.
-        /// </summary>
         public bool IsPixelPainted(int x, int y)
         {
-            if (previewTexture != null && x >= 0 && x < previewTexture.width && y >= 0 && y < previewTexture.height)
+            if (previewTexture != null &&
+                x >= 0 && x < previewTexture.width &&
+                y >= 0 && y < previewTexture.height)
             {
                 var pixelColor = previewTexture.GetPixel(x, y);
                 return pixelColor.a > 0.5f;
@@ -169,10 +167,29 @@ namespace CozyWorldGeneration.Data.Layers
             return false;
         }
 
+        /// <summary>
+        /// Serializes the current texture to PNG data for persistence.
+        /// Should be called:
+        /// - At the end of a paint stroke (GridPainterTool.EndPaintStroke)
+        /// - When saving the world (WorldSaveManager.SaveWorld)
+        /// - When clearing the layer
+        /// </summary>
+        public void SerializeTextureData()
+        {
+            if (previewTexture != null)
+            {
+                textureData = previewTexture.EncodeToPNG();
+#if UNITY_EDITOR
+                Debug.Log($"[WorldLayer] Serialized texture data for {layerName} ({textureData.Length} bytes)");
+#endif
+            }
+        }
+
 #if UNITY_EDITOR
         private void OnValidate()
         {
-            if (textureData != null && textureData.Length > 0) RebuildTextureFromData();
+            if (textureData != null && textureData.Length > 0)
+                RebuildTextureFromData();
         }
 #endif
     }
