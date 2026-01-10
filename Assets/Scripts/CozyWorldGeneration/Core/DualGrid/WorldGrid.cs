@@ -21,7 +21,7 @@ namespace CozyWorldGeneration.Core.DualGrid
             SetTile(x, y, layer.LayerLevel, tile);
 
             if (!SuppressEvents)
-                ToolEvents.RaiseTileChanged(x, y);
+                ToolEvents.TriggerTileChanged(x, y);
         }
 
         public void RemoveTile(int x, int y, int level)
@@ -29,7 +29,7 @@ namespace CozyWorldGeneration.Core.DualGrid
             if (!HasTile(x, y, level)) return;
             SetTile(x, y, level, null);
             if (!SuppressEvents)
-                ToolEvents.RaiseTileChanged(x, y);
+                ToolEvents.TriggerTileChanged(x, y);
         }
 
         public bool HasTileAt(int x, int y, int level)
@@ -52,7 +52,7 @@ namespace CozyWorldGeneration.Core.DualGrid
         {
             base.Clear();
             if (!SuppressEvents)
-                ToolEvents.RaiseGridCleared();
+                ToolEvents.TriggerGridCleared();
         }
     }
 }

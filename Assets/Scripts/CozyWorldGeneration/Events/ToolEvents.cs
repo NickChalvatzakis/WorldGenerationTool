@@ -81,60 +81,60 @@ namespace CozyWorldGeneration.Events
         #region Event Invocation Methods
 
         // Layer Events
-        public static void RaiseLayerAdded(WorldLayer layer)
+        public static void TriggerLayerAdded(WorldLayer layer)
         {
             OnLayerAdded?.Invoke(layer);
         }
 
-        public static void RaiseLayerRemoved(WorldLayer layer)
+        public static void TriggerLayerRemoved(WorldLayer layer)
         {
             OnLayerRemoved?.Invoke(layer);
         }
 
-        public static void RaiseLayerCleared(WorldLayer layer)
+        public static void TriggerLayerCleared(WorldLayer layer)
         {
             OnLayerCleared?.Invoke(layer);
         }
 
 
         // Grid Events
-        public static void RaiseTilePlaced(int x, int y, TileType tileType, WorldLayer sourceLayer)
+        public static void TriggerTilePlaced(int x, int y, TileType tileType, WorldLayer sourceLayer)
         {
             OnTilePlaced?.Invoke(x, y, tileType, sourceLayer);
         }
 
-        public static void RaiseTileRemoved(int x, int y)
+        public static void TriggerTileRemoved(int x, int y)
         {
             OnTileRemoved?.Invoke(x, y);
         }
 
-        public static void RaiseTileChanged(int x, int y)
+        public static void TriggerTileChanged(int x, int y)
         {
             OnTileChanged?.Invoke(x, y);
         }
 
-        public static void RaiseGridCleared()
+        public static void TriggerGridCleared()
         {
             OnGridCleared?.Invoke();
         }
 
-        public static void RaiseGridInitialized(int width, int height)
+        public static void TriggerGridInitialized(int width, int height)
         {
             OnGridInitialized?.Invoke(width, height);
         }
 
         // Painting Events
-        public static void RaisePaintingStarted(WorldLayer layer)
+        public static void TriggerPaintingStarted(WorldLayer layer)
         {
             OnPaintingStarted?.Invoke(layer);
         }
 
-        public static void RaisePaintingStopped()
+        public static void TriggerPaintingStopped()
         {
             OnPaintingStopped?.Invoke();
         }
 
-        public static void RaiseActiveLayerChanged(WorldLayer layer)
+        public static void TriggerActiveLayerChanged(WorldLayer layer)
         {
             OnActiveLayerChanged?.Invoke(layer);
         }
