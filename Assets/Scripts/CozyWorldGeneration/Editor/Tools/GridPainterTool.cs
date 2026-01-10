@@ -18,9 +18,10 @@ namespace CozyWorldGeneration.Editor
         private WorldLayer selectedLayer;
         private bool isPainting = false;
         private bool isErasing = false;
-        private int undoGroup;
-        private HashSet<WorldLayer> modifiedLayers = new();
 
+        // Undo system - groups multiple paint operations into one undo
+        private int undoGroup;
+        private HashSet<WorldLayer> modifiedLayersInCurrentStroke = new();
 
         private int brushSize = 1;
 
@@ -42,20 +43,26 @@ namespace CozyWorldGeneration.Editor
             Undo.undoRedoPerformed -= OnUndoRedoPerformed;
         }
 
+        /// <summary>
+        /// Called when user presses Ctrl+Z or Ctrl+Shift+Z
+        /// Rebuilds the grid from layer texture data
+        /// </summary>
         private void OnUndoRedoPerformed()
         {
             if (gridManager == null)
                 return;
 
+            // Rebuild all layer textures from serialized data
             if (gridManager.WorldLayerCollection?.Layers != null)
                 foreach (var layer in gridManager.WorldLayerCollection.Layers)
                     layer?.ForceRebuildTexture(gridManager.Width, gridManager.Height);
 
-            if (gridManager.WorldGrid != null) RebuildWorldGridFromLayers();
+            // Rebuild the WorldGrid from the updated layer textures
+            if (gridManager.WorldGrid != null)
+                RebuildWorldGridFromLayers();
 
             SceneView.RepaintAll();
         }
-
 
         private void RebuildWorldGridFromLayers()
         {
@@ -93,29 +100,47 @@ namespace CozyWorldGeneration.Editor
             }
         }
 
-        private void BeginPaintOperation(string operationName)
+        /// <summary>
+        /// Begins a new paint stroke - creates a single undo operation for the entire stroke
+        /// Called on MouseDown
+        /// </summary>
+        private void BeginPaintStroke(string operationName)
         {
             Undo.SetCurrentGroupName(operationName);
             undoGroup = Undo.GetCurrentGroup();
-            modifiedLayers.Clear();
+            modifiedLayersInCurrentStroke.Clear();
         }
 
-        private void EndPaintOperation()
+        /// <summary>
+        /// Ends the current paint stroke - collapses all changes into one undo operation
+        /// Called on MouseUp
+        /// </summary>
+        private void EndPaintStroke()
         {
-            if (modifiedLayers.Count > 0) Undo.CollapseUndoOperations(undoGroup);
-            modifiedLayers.Clear();
+            if (modifiedLayersInCurrentStroke.Count > 0)
+            {
+                // Collapse all Undo.RecordObject calls into one undo operation
+                Undo.CollapseUndoOperations(undoGroup);
+
+                // Mark all modified layers as dirty so Unity saves them
+                foreach (var layer in modifiedLayersInCurrentStroke) EditorUtility.SetDirty(layer);
+            }
+
+            modifiedLayersInCurrentStroke.Clear();
         }
 
-
-        private void RecordLayerUndo(WorldLayer layer)
+        /// <summary>
+        /// Records a layer for undo - only records once per stroke
+        /// Multiple calls to this method within one stroke are safe (no duplicates)
+        /// </summary>
+        private void RecordLayerForUndo(WorldLayer layer)
         {
-            if (layer != null && !modifiedLayers.Contains(layer))
+            if (layer != null && !modifiedLayersInCurrentStroke.Contains(layer))
             {
                 Undo.RecordObject(layer, "Paint Tiles");
-                modifiedLayers.Add(layer);
+                modifiedLayersInCurrentStroke.Add(layer);
             }
         }
-
 
         public override void OnToolGUI(EditorWindow window)
         {
@@ -148,6 +173,7 @@ namespace CozyWorldGeneration.Editor
             // Allow camera controls (Alt + mouse) to pass through
             if (e.alt) return;
 
+            // Ctrl+Scroll = change brush size
             if (e.type == EventType.ScrollWheel && e.control)
             {
                 brushSize = Mathf.Max(1, brushSize - (int)Mathf.Sign(e.delta.y));
@@ -165,18 +191,18 @@ namespace CozyWorldGeneration.Editor
             switch (e.type)
             {
                 case EventType.MouseDown:
-                    if (e.button == 0) // Left click
+                    if (e.button == 0) // Left click = Paint
                     {
                         isPainting = true;
-                        BeginPaintOperation("Paint Tiles");
+                        BeginPaintStroke("Paint Tiles");
                         PaintAtMousePosition(e);
                         e.Use();
                         GUIUtility.hotControl = controlID;
                     }
-                    else if (e.button == 1) // Right click
+                    else if (e.button == 1) // Right click = Erase
                     {
                         isErasing = true;
-                        BeginPaintOperation("Erase Tiles");
+                        BeginPaintStroke("Erase Tiles");
                         EraseAtMousePosition(e);
                         e.Use();
                         GUIUtility.hotControl = controlID;
@@ -185,15 +211,15 @@ namespace CozyWorldGeneration.Editor
                     break;
 
                 case EventType.MouseDrag:
+                    // Continue painting/erasing during drag
+                    // No BeginPaintStroke here - we want one undo for the entire stroke!
                     if (isPainting && e.button == 0)
                     {
-                        BeginPaintOperation("Paint Tiles");
                         PaintAtMousePosition(e);
                         e.Use();
                     }
                     else if (isErasing && e.button == 1)
                     {
-                        BeginPaintOperation("Erase Tiles");
                         EraseAtMousePosition(e);
                         e.Use();
                     }
@@ -204,13 +230,13 @@ namespace CozyWorldGeneration.Editor
                     if (e.button == 0)
                     {
                         isPainting = false;
-                        EndPaintOperation();
+                        EndPaintStroke(); // Collapse all changes into one undo
                         GUIUtility.hotControl = 0;
                     }
                     else if (e.button == 1)
                     {
                         isErasing = false;
-                        EndPaintOperation();
+                        EndPaintStroke(); // Collapse all changes into one undo
                         GUIUtility.hotControl = 0;
                     }
 
@@ -232,7 +258,7 @@ namespace CozyWorldGeneration.Editor
 
             for (var x = -radius; x <= radius; x++)
             for (var y = -radius; y <= radius; y++)
-                // Circular check
+                // Circular brush shape
                 if (x * x + y * y <= radiusSq)
                 {
                     var pos = new Vector2Int(center.x + x, center.y + y);
@@ -241,7 +267,6 @@ namespace CozyWorldGeneration.Editor
                 }
         }
 
-
         private void PaintAtMousePosition(Event e)
         {
             if (selectedLayer == null || !selectedLayer.IsEnabled || selectedLayer.LockFromPaint)
@@ -249,6 +274,7 @@ namespace CozyWorldGeneration.Editor
 
             var gridPos = GetGridPositionFromMouse(e.mousePosition);
             if (!gridPos.HasValue) return;
+
             foreach (var pos in GetBrushPositions(gridPos.Value))
                 PaintTile(pos.x, pos.y);
         }
@@ -260,7 +286,9 @@ namespace CozyWorldGeneration.Editor
 
             var gridPos = GetGridPositionFromMouse(e.mousePosition);
             if (!gridPos.HasValue) return;
-            foreach (var pos in GetBrushPositions(gridPos.Value)) EraseTile(pos.x, pos.y);
+
+            foreach (var pos in GetBrushPositions(gridPos.Value))
+                EraseTile(pos.x, pos.y);
         }
 
         private Vector2Int? GetGridPositionFromMouse(Vector2 mousePosition)
@@ -273,30 +301,43 @@ namespace CozyWorldGeneration.Editor
                 var worldPos = ray.GetPoint(enter);
                 var gridPos = gridManager.WorldToGridPosition(worldPos);
 
-                if (gridManager.WorldGrid.IsValidPosition(gridPos)) return gridPos;
+                if (gridManager.WorldGrid.IsValidPosition(gridPos))
+                    return gridPos;
             }
 
             return null;
         }
 
+        /// <summary>
+        /// Paints a single tile at the specified position
+        /// Records undo only once per stroke (via RecordLayerForUndo guard)
+        /// </summary>
         private void PaintTile(int x, int y)
         {
-            RecordLayerUndo(selectedLayer);
+            RecordLayerForUndo(selectedLayer);
 
             selectedLayer.PaintPixel(x, y, true);
             gridManager.WorldGrid.PlaceTile(x, y, selectedLayer);
+
+            // Note: SetDirty is also called in EndPaintStroke, but calling here too
+            // ensures the layer is marked dirty even if something goes wrong
             EditorUtility.SetDirty(selectedLayer);
             SceneView.RepaintAll();
         }
 
+        /// <summary>
+        /// Erases a single tile at the specified position
+        /// Only erases if the tile belongs to the selected layer
+        /// </summary>
         private void EraseTile(int x, int y)
         {
             var level = selectedLayer.LayerLevel;
             var tile = gridManager.WorldGrid.GetTile(x, y, level);
 
+            // Only erase if the tile exists and belongs to the selected layer
             if (tile != null && tile.SourceLayer == selectedLayer)
             {
-                RecordLayerUndo(selectedLayer);
+                RecordLayerForUndo(selectedLayer);
 
                 selectedLayer.PaintPixel(x, y, false);
                 EditorUtility.SetDirty(selectedLayer);
@@ -306,7 +347,6 @@ namespace CozyWorldGeneration.Editor
             }
         }
 
-
         private void DrawGridPreview()
         {
             if (gridManager == null || gridManager.WorldGrid == null)
@@ -314,18 +354,20 @@ namespace CozyWorldGeneration.Editor
 
             Handles.color = Color.green;
 
-            // Highlight hovered cell
+            // Highlight hovered cell(s) based on brush size
             var hoveredPos = GetGridPositionFromMouse(Event.current.mousePosition);
             if (hoveredPos.HasValue)
             {
+                // Color preview based on current action
                 Handles.color = isPainting ? Color.green : isErasing ? Color.red : Color.yellow;
+
                 foreach (var pos in GetBrushPositions(hoveredPos.Value))
                 {
                     var worldPos = gridManager.GridToWorldPosition(pos.x, pos.y);
                     Handles.DrawWireCube(worldPos, Vector3.one * gridManager.TileSize * 0.95f);
                 }
 
-                // Show what will be painted
+                // Show layer name when hovering (not actively painting/erasing)
                 if (selectedLayer != null && !isPainting && !isErasing)
                 {
                     var centerWorldPos = gridManager.GridToWorldPosition(hoveredPos.Value.x, hoveredPos.Value.y);
@@ -336,52 +378,6 @@ namespace CozyWorldGeneration.Editor
                     );
                 }
             }
-            //
-            // var debugConfigDrawTiles = gridManager.DrawDebugTiles;
-            //
-            // if (!debugConfigDrawTiles) return;
-            //
-            // // Draw grid cells and tile type labels
-            // for (var x = 0; x < gridManager.Width; x++)
-            // for (var y = 0; y < gridManager.Height; y++)
-            // {
-            //     var worldPos = gridManager.GridToWorldPosition(x, y);
-            //     var cellSize = Vector3.one * gridManager.TileSize;
-            //
-            //
-            //     // Draw tile if it exists
-            //     var tile = gridManager.WorldGrid.GetTile(x, y);
-            //     if (tile != null)
-            //     {
-            //         // Color based on source layer
-            //         var tileColor = tile.SourceLayer != null ? tile.SourceLayer.LayerColor : Color.white;
-            //         tileColor.a = 0.5f;
-            //         Handles.color = tileColor;
-            //         Handles.DrawSolidRectangleWithOutline(
-            //             new Vector3[]
-            //             {
-            //                 worldPos + new Vector3(-0.5f, 0, -0.5f) * gridManager.TileSize,
-            //                 worldPos + new Vector3(0.5f, 0, -0.5f) * gridManager.TileSize,
-            //                 worldPos + new Vector3(0.5f, 0, 0.5f) * gridManager.TileSize,
-            //                 worldPos + new Vector3(-0.5f, 0, 0.5f) * gridManager.TileSize
-            //             },
-            //             tileColor,
-            //             Color.clear
-            //         );
-            //
-            //         // Draw tile type label
-            //         Handles.Label(
-            //             worldPos + Vector3.up * 0.1f,
-            //             tile.SourceLayer.name,
-            //             new GUIStyle(EditorStyles.whiteBoldLabel)
-            //             {
-            //                 fontSize = 10,
-            //                 alignment = TextAnchor.MiddleCenter,
-            //                 normal = { textColor = Color.black }
-            //             }
-            //         );
-            //     }
-            // }
         }
     }
 }
