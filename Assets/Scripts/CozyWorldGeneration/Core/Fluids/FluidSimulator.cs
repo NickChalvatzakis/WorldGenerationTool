@@ -212,6 +212,8 @@ namespace CozyWorldGeneration.Core.Fluids
                             fluidData.RemoveFillAmount(spreadAmount);
                         }
 
+                        Debug.Log($"[FluidSimulator] Spread {spreadAmount} from {position} to {targetPos}");
+
                         if (fluidData.FillAmount <= 1) break;
                     }
                 }
@@ -389,6 +391,8 @@ namespace CozyWorldGeneration.Core.Fluids
 
         public void AddFluid(int x, int y, int level, FluidType type, int amount, bool isSource)
         {
+            Debug.Log(
+                $"[FluidSimulator] Adding fluid at ({x}, {y}, {level}) - Type: {type.FluidName}, Amount: {amount}");
             WorldGrid.PlaceFluid(x, y, level, type, amount);
             SetSource(x, y, level, isSource);
         }

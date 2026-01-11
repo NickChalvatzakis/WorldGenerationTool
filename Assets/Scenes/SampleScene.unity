@@ -306,7 +306,6 @@ MonoBehaviour:
   gridMaxLevels: 10
   tileSize: 1
   enableFluids: 1
-  fluidVisualLevel: 0
   fluidVisualHeightOffset: -0.03
   worldLayerCollection:
     guid: 2115217d-28cb-430c-a0e6-976331b481ca
@@ -315,7 +314,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 4483eebe70ea0a0499b1273c0c14271b, type: 2}
     - {fileID: 11400000, guid: daac8df6ac95bfe418399204a7bf0cfd, type: 2}
     - {fileID: 11400000, guid: cac16d181037dee4d96f286a173ac764, type: 2}
-    - {fileID: 11400000, guid: 63eebe085367081449e2766b8e958bfd, type: 2}
+    - {fileID: 11400000, guid: 5311d2ea9605fe64aaa6df2468af28df, type: 2}
   visualLayerCollection: {fileID: 632592523}
   worldName: Testing
   autoLoadOnStart: 0
@@ -486,7 +485,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!64 &426291729
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -598,7 +597,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 2fe9b7e7f74653c4db4985a867f64098, type: 2}
   - {fileID: 11400000, guid: 6dd670d0f541148489397ecc5ded0ee7, type: 2}
   - {fileID: 11400000, guid: c61cf3823a6c0334eb29869d2f404c50, type: 2}
-  - {fileID: 11400000, guid: 75da9db74202d0e45a2673b65fd52c1f, type: 2}
+  - {fileID: 11400000, guid: 7bb0f64affe1e6f4480b492f3922ac87, type: 2}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0

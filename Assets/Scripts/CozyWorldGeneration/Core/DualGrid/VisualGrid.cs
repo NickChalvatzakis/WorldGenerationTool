@@ -10,6 +10,7 @@ namespace CozyWorldGeneration.Core.DualGrid
         private WorldGrid worldGrid;
         private WorldLayer worldLayer;
         private int level;
+        private bool checkAllLevels; // For fluid visuals that need to check all levels
         public Vector2 Offset { get; private set; }
         public Transform TilesContainer { get; set; }
         public float TileSize { get; set; }
@@ -28,12 +29,13 @@ namespace CozyWorldGeneration.Core.DualGrid
         // Delegate to get VisualLayer for a WorldLayer (set by GridManager)
         public Func<WorldLayer, VisualLayer> GetVisualLayerForWorldLayer { get; set; }
 
-        public VisualGrid(int width, int height, WorldGrid worldGrid, WorldLayer worldLayer, float tileSize = 1f) :
-            base(width, height)
+        public VisualGrid(int width, int height, WorldGrid worldGrid, WorldLayer worldLayer, float tileSize = 1f,
+            bool checkAllLevels = false) : base(width, height)
         {
             this.worldGrid = worldGrid;
             this.worldLayer = worldLayer;
-            level = worldLayer?.LayerLevel ?? 0; // ADD THIS
+            level = worldLayer?.LayerLevel ?? 0;
+            this.checkAllLevels = checkAllLevels;
             TileSize = tileSize;
             Offset = new Vector2(0.5f, 0.5f);
 
@@ -71,19 +73,19 @@ namespace CozyWorldGeneration.Core.DualGrid
 
             // Check the 4 corners - for fluids OR solid tiles depending on layer type
             var bottomLeft = isFluidLayer
-                ? worldGrid.HasFluid(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y, level)
+                ? HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y)
                 : worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y, worldLayer);
 
             var bottomRight = isFluidLayer
-                ? worldGrid.HasFluid(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y, level)
+                ? HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y)
                 : worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y, worldLayer);
 
             var topLeft = isFluidLayer
-                ? worldGrid.HasFluid(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y, level)
+                ? HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y)
                 : worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y, worldLayer);
 
             var topRight = isFluidLayer
-                ? worldGrid.HasFluid(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y, level)
+                ? HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y)
                 : worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y, worldLayer);
 
             tile.ConfigurationIndex = CalculateConfiguration(bottomLeft, bottomRight, topLeft, topRight);
@@ -95,10 +97,10 @@ namespace CozyWorldGeneration.Core.DualGrid
 
                 foreach (var offset in NEIGHBOUR_OFFSETS)
                 {
-                    var checkTile = worldGrid.GetTile(x + offset.x, y + offset.y, level);
-                    if (checkTile?.Fluid != null)
+                    var fluidTile = GetFluidTileAtPosition(x + offset.x, y + offset.y);
+                    if (fluidTile?.Fluid != null)
                     {
-                        totalFill += checkTile.Fluid.FillLevel;
+                        totalFill += fluidTile.Fluid.FillLevel;
                         filledCount++;
                     }
                 }
@@ -115,6 +117,50 @@ namespace CozyWorldGeneration.Core.DualGrid
                 tile.UpdateVisual(TilesContainer, TileSize);
         }
 
+        /// <summary>
+        /// Checks if there is fluid at the given position, either at a specific level or at any level
+        /// </summary>
+        private bool HasFluidAtPosition(int x, int y)
+        {
+            if (checkAllLevels)
+            {
+                // Check all levels for any fluid
+                for (var checkLevel = 0; checkLevel < 10; checkLevel++)
+                {
+                    if (worldGrid.HasFluid(x, y, checkLevel))
+                        return true;
+                }
+                return false;
+            }
+            else
+            {
+                // Check only the specific level
+                return worldGrid.HasFluid(x, y, level);
+            }
+        }
+
+        /// <summary>
+        /// Gets the fluid tile at the given position, checking all levels if needed
+        /// </summary>
+        private WorldTile GetFluidTileAtPosition(int x, int y)
+        {
+            if (checkAllLevels)
+            {
+                // Return the highest level fluid tile
+                for (var checkLevel = 9; checkLevel >= 0; checkLevel--)
+                {
+                    var tile = worldGrid.GetTile(x, y, checkLevel);
+                    if (tile?.Fluid != null)
+                        return tile;
+                }
+                return null;
+            }
+            else
+            {
+                // Check only the specific level
+                return worldGrid.GetTile(x, y, level);
+            }
+        }
 
         /// <summary>
         /// Calculates configuration index (0-15) based on which neighbours are filled.

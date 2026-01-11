@@ -137,17 +137,6 @@ namespace CozyWorldGeneration.Editor
                 serializedObject.ApplyModifiedProperties();
             });
 
-            // Fluid Visual Level
-            var fluidVisualLevelField = new IntegerField("Fluid Visual Level")
-            {
-                value = serializedObject.FindProperty("fluidVisualLevel").intValue
-            };
-            fluidVisualLevelField.RegisterValueChangedCallback(evt =>
-            {
-                serializedObject.FindProperty("fluidVisualLevel").intValue = evt.newValue;
-                serializedObject.ApplyModifiedProperties();
-            });
-
             // Fluid Visual Height Offset
             var fluidHeightOffsetField = new FloatField("Fluid Height Offset")
             {
@@ -223,7 +212,6 @@ namespace CozyWorldGeneration.Editor
             clearFluidsBtn.style.backgroundColor = new Color(0.5f, 0.2f, 0.2f);
 
             fluidSettingsFoldout.Add(enableFluidsToggle);
-            fluidSettingsFoldout.Add(fluidVisualLevelField);
             fluidSettingsFoldout.Add(fluidHeightOffsetField);
             fluidSettingsFoldout.Add(runtimeInfoContainer);
             fluidSettingsFoldout.Add(clearFluidsBtn);

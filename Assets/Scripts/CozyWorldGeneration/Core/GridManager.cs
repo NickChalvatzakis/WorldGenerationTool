@@ -22,7 +22,6 @@ namespace CozyWorldGeneration.Core
         [Header("Fluid Settings")] [SerializeField]
         private bool enableFluids = true;
 
-        [SerializeField] private int fluidVisualLevel = 0;
         [SerializeField] private float fluidVisualHeightOffset = -0.03f;
 
         private Dictionary<WorldLayer, VisualGrid> visualGrids = new();
@@ -260,12 +259,12 @@ namespace CozyWorldGeneration.Core
             }
 
             // Create a temporary WorldLayer reference for the VisualGrid constructor
-            // This is just to satisfy the API - the actual fluid detection happens in the updated VisualGrid
+            // LayerLevel doesn't matter since we check all levels for fluids
             var fluidWorldLayer = ScriptableObject.CreateInstance<WorldLayer>();
-            fluidWorldLayer.LayerLevel = fluidVisualLevel;
+            fluidWorldLayer.LayerLevel = 0;
             fluidWorldLayer.LayerName = "Fluid_Internal";
 
-            fluidVisualGrid = new VisualGrid(gridWidth - 1, gridHeight - 1, WorldGrid, fluidWorldLayer, TileSize);
+            fluidVisualGrid = new VisualGrid(gridWidth - 1, gridHeight - 1, WorldGrid, fluidWorldLayer, TileSize, true);
 
             var container = new GameObject("Fluid_Visuals");
             container.transform.SetParent(visualTilesContainer);
@@ -376,10 +375,16 @@ namespace CozyWorldGeneration.Core
         /// </summary>
         private void HandleFluidChanged(WorldTile tile)
         {
-            if (fluidVisualGrid == null) return;
+            if (fluidVisualGrid == null)
+            {
+                Debug.LogWarning("[GridManager] fluidVisualGrid is null!");
+                return;
+            }
 
             var x = tile.GridPosition.x;
             var y = tile.GridPosition.y;
+
+            Debug.Log($"[GridManager] HandleFluidChanged at ({x}, {y}) FillLevel: {tile.Fluid.FillLevel}");
 
             // Update the visual tiles around this position
             fluidVisualGrid.UpdateVisualTile(x - 1, y - 1);

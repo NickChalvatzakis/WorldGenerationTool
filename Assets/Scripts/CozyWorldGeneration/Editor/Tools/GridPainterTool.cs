@@ -322,20 +322,30 @@ namespace CozyWorldGeneration.Editor
         private void PaintFluidAtMousePosition(Event e)
         {
             if (selectedFluidType == null)
+            {
+                Debug.LogWarning("[GridPainterTool] No fluid type selected!");
                 return;
+            }
 
             if (gridManager.FluidSimulator == null)
             {
-                Debug.LogWarning("FluidSimulator not initialized on GridManager");
+                Debug.LogWarning("[GridPainterTool] FluidSimulator not initialized on GridManager");
                 return;
             }
 
             var gridPos = GetGridPositionFromMouse(e.mousePosition);
-            if (!gridPos.HasValue) return;
+            if (!gridPos.HasValue)
+            {
+                Debug.LogWarning("[GridPainterTool] Could not get grid position from mouse");
+                return;
+            }
+
+            Debug.Log($"[GridPainterTool] Painting fluid at grid pos: {gridPos.Value}");
 
             foreach (var pos in GetBrushPositions(gridPos.Value))
             {
                 var level = GetTerrainLevelAt(pos.x, pos.y) + 1;
+                Debug.Log($"[GridPainterTool] Terrain level at ({pos.x}, {pos.y}): {level - 1}, placing fluid at level: {level}");
                 PaintFluid(pos.x, pos.y, level);
             }
         }
@@ -358,10 +368,13 @@ namespace CozyWorldGeneration.Editor
         {
             var highestLevel = -1;
 
-            foreach (var position in gridManager.WorldGrid.GetAllPositions())
-                if (position.x == x && position.y == y)
-                    if (position.z > highestLevel)
-                        highestLevel = position.z;
+            // Check for the highest solid tile at this x,y position
+            for (var level = 0; level < gridManager.MaxLevels; level++)
+            {
+                var tile = gridManager.GetWorldTile(x, y, level);
+                if (tile != null && tile.SourceLayer != null)
+                    highestLevel = level;
+            }
 
             return highestLevel;
         }
