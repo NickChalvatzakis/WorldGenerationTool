@@ -2,7 +2,11 @@
 using System.IO;
 using CozyWorldGeneration.Data.Layers;
 using CozyWorldGeneration.Data.SaveSystem;
+using CozyWorldGeneration.Data.Tilesets;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace CozyWorldGeneration.Core.SaveSystem
 {
@@ -20,31 +24,23 @@ namespace CozyWorldGeneration.Core.SaveSystem
             var fileName = $"{worldName}{extension}";
 
 #if UNITY_EDITOR
-            // In Editor: Save to project folder
             return Path.Combine(Application.dataPath, "WorldSaves", fileName);
 #else
-            // At Runtime: Save to persistent data path
             return Path.Combine(Application.persistentDataPath, "WorldSaves", fileName);
 #endif
         }
 
-        /// <summary>
-        /// Saves the current world to a file
-        /// </summary>
         public static bool SaveWorld(GridManager gridManager, string worldName, SaveFormat format = SaveFormat.JSON)
         {
             try
             {
-                // Create save data from current grid state
                 var saveData = CreateSaveData(gridManager, worldName);
 
-                // Ensure directory exists
                 var savePath = GetSavePath(worldName, format);
                 var directory = Path.GetDirectoryName(savePath);
                 if (!Directory.Exists(directory))
                     Directory.CreateDirectory(directory);
 
-                // Save based on format
                 if (format == SaveFormat.JSON)
                 {
                     var json = JsonUtility.ToJson(saveData, true);
@@ -52,7 +48,6 @@ namespace CozyWorldGeneration.Core.SaveSystem
                 }
                 else
                 {
-                    // Binary format (more compact)
                     var json = JsonUtility.ToJson(saveData);
                     var bytes = System.Text.Encoding.UTF8.GetBytes(json);
                     File.WriteAllBytes(savePath, bytes);
@@ -68,9 +63,6 @@ namespace CozyWorldGeneration.Core.SaveSystem
             }
         }
 
-        /// <summary>
-        /// Loads a world from a file
-        /// </summary>
         public static WorldSaveData LoadWorld(string worldName, SaveFormat format = SaveFormat.JSON)
         {
             try
@@ -106,9 +98,6 @@ namespace CozyWorldGeneration.Core.SaveSystem
             }
         }
 
-        /// <summary>
-        /// Creates save data from the current grid manager state
-        /// </summary>
         private static WorldSaveData CreateSaveData(GridManager gridManager, string worldName)
         {
             var saveData = new WorldSaveData
@@ -123,7 +112,7 @@ namespace CozyWorldGeneration.Core.SaveSystem
                 )
             };
 
-            // Save each layer's data
+            // Save WorldLayers
             if (gridManager.WorldLayerCollection?.Layers != null)
                 foreach (var layer in gridManager.WorldLayerCollection.Layers)
                 {
@@ -138,7 +127,11 @@ namespace CozyWorldGeneration.Core.SaveSystem
                     layerData.layerGuid = layer.GUID;
                     layerData.isEnabled = layer.IsEnabled;
 
-                    // Store only painted tiles (sparse storage)
+#if UNITY_EDITOR
+                    // Store asset path for editor reloading
+                    layerData.assetPath = AssetDatabase.GetAssetPath(layer);
+#endif
+
                     if (layer.PreviewTexture != null)
                         for (var x = 0; x < layer.PreviewTexture.width; x++)
                         for (var y = 0; y < layer.PreviewTexture.height; y++)
@@ -148,12 +141,41 @@ namespace CozyWorldGeneration.Core.SaveSystem
                     saveData.layers.Add(layerData);
                 }
 
+            // Save VisualLayers
+            if (gridManager.VisualLayerCollection?.Layers != null)
+                foreach (var visualLayer in gridManager.VisualLayerCollection.Layers)
+                {
+                    if (visualLayer == null) continue;
+
+                    var visualLayerData = new VisualLayerSaveData
+                    {
+                        layerName = visualLayer.LayerName,
+                        layerGuid = visualLayer.GUID,
+                        isEnabled = visualLayer.IsEnabled,
+                        isFluidLayer = visualLayer.IsFluidLayer,
+                        visualHeight = visualLayer.VisualHeight,
+                        assignedWorldLayerGuid = visualLayer.AssignedWorldLayer?.GUID
+                    };
+
+#if UNITY_EDITOR
+                    visualLayerData.assetPath = AssetDatabase.GetAssetPath(visualLayer);
+
+                    // Save tileset references
+                    foreach (var weightedTileset in visualLayer.Tilesets)
+                        if (weightedTileset.tileset != null)
+                        {
+                            var tilesetPath = AssetDatabase.GetAssetPath(weightedTileset.tileset);
+                            visualLayerData.tilesetReferences.Add(new TilesetReference(tilesetPath,
+                                weightedTileset.weight));
+                        }
+#endif
+
+                    saveData.visualLayers.Add(visualLayerData);
+                }
+
             return saveData;
         }
 
-        /// <summary>
-        /// Applies loaded save data to a grid manager
-        /// </summary>
         public static void ApplySaveData(GridManager gridManager, WorldSaveData saveData)
         {
             if (gridManager == null || saveData == null)
@@ -164,39 +186,47 @@ namespace CozyWorldGeneration.Core.SaveSystem
 
             Debug.Log($"[WorldSaveManager] Applying save data for world: {saveData.worldName}");
 
-            // Note: Grid dimensions are set in GridManager inspector
-            // You might want to validate or resize here
             if (saveData.gridSettings.width != gridManager.Width ||
                 saveData.gridSettings.height != gridManager.Height)
                 Debug.LogWarning($"[WorldSaveManager] Grid size mismatch! " +
                                  $"Save: {saveData.gridSettings.width}x{saveData.gridSettings.height}, " +
                                  $"Current: {gridManager.Width}x{gridManager.Height}");
 
-            // Clear existing data
+            // Apply VisualLayers FIRST (so they're available when we refresh)
+            ApplyVisualLayers(gridManager, saveData);
+
+            // Clear and rebuild WorldGrid
             gridManager.WorldGrid.SuppressEvents = true;
             gridManager.WorldGrid.Clear();
 
-            // Find or create layers and paint tiles
             foreach (var layerData in saveData.layers)
             {
-                // Try to find existing layer by GUID
                 var layer = FindLayerByGuid(gridManager, layerData.layerGuid);
 
-                // Or find by name
                 if (layer == null)
                     layer = FindLayerByName(gridManager, layerData.layerName);
 
+#if UNITY_EDITOR
+                // Try to load from asset path if not found
+                if (layer == null && !string.IsNullOrEmpty(layerData.assetPath))
+                {
+                    layer = AssetDatabase.LoadAssetAtPath<WorldLayer>(layerData.assetPath);
+                    if (layer != null)
+                    {
+                        gridManager.AddLayerToCollection(layer);
+                        Debug.Log($"[WorldSaveManager] Loaded WorldLayer from asset: {layerData.assetPath}");
+                    }
+                }
+#endif
+
                 if (layer == null)
                 {
-                    Debug.LogWarning(
-                        $"[WorldSaveManager] Layer '{layerData.layerName}' not found in current scene. Skipping.");
+                    Debug.LogWarning($"[WorldSaveManager] Layer '{layerData.layerName}' not found. Skipping.");
                     continue;
                 }
 
-                // Clear layer first
                 layer.ClearPreviewTexture();
 
-                // Paint all saved tiles
                 foreach (var tileData in layerData.tiles)
                 {
                     layer.PaintPixel(tileData.x, tileData.y, true);
@@ -211,6 +241,95 @@ namespace CozyWorldGeneration.Core.SaveSystem
             gridManager.RefreshAllVisualGrids();
 
             Debug.Log($"[WorldSaveManager] Successfully applied save data");
+        }
+
+        private static void ApplyVisualLayers(GridManager gridManager, WorldSaveData saveData)
+        {
+            if (saveData.visualLayers == null || saveData.visualLayers.Count == 0)
+            {
+                Debug.LogWarning("[WorldSaveManager] No visual layers in save data");
+                return;
+            }
+
+#if UNITY_EDITOR
+            // Ensure VisualLayerCollection exists
+            if (gridManager.VisualLayerCollection == null)
+            {
+                Debug.LogWarning("[WorldSaveManager] VisualLayerCollection is null - cannot load visual layers");
+                return;
+            }
+
+            foreach (var visualLayerData in saveData.visualLayers)
+            {
+                VisualLayer visualLayer = null;
+
+                // Try to find existing layer by GUID
+                foreach (var existing in gridManager.VisualLayerCollection.Layers)
+                    if (existing != null && existing.GUID == visualLayerData.layerGuid)
+                    {
+                        visualLayer = existing;
+                        break;
+                    }
+
+                // Try to load from asset path
+                if (visualLayer == null && !string.IsNullOrEmpty(visualLayerData.assetPath))
+                {
+                    visualLayer = AssetDatabase.LoadAssetAtPath<VisualLayer>(visualLayerData.assetPath);
+
+                    if (visualLayer != null && !gridManager.VisualLayerCollection.Layers.Contains(visualLayer))
+                    {
+                        gridManager.VisualLayerCollection.AddLayer(visualLayer);
+                        Debug.Log($"[WorldSaveManager] Added VisualLayer from asset: {visualLayerData.assetPath}");
+                    }
+                }
+
+                if (visualLayer == null)
+                {
+                    Debug.LogWarning(
+                        $"[WorldSaveManager] VisualLayer '{visualLayerData.layerName}' not found at path: {visualLayerData.assetPath}");
+                    continue;
+                }
+
+                // Update properties
+                visualLayer.IsEnabled = visualLayerData.isEnabled;
+                visualLayer.IsFluidLayer = visualLayerData.isFluidLayer;
+                visualLayer.VisualHeight = visualLayerData.visualHeight;
+
+                // Find and assign the WorldLayer reference
+                if (!string.IsNullOrEmpty(visualLayerData.assignedWorldLayerGuid))
+                {
+                    var worldLayer = FindLayerByGuid(gridManager, visualLayerData.assignedWorldLayerGuid);
+                    if (worldLayer != null)
+                    {
+                        visualLayer.AssignedWorldLayer = worldLayer;
+                        Debug.Log(
+                            $"[WorldSaveManager] Linked VisualLayer '{visualLayer.LayerName}' -> WorldLayer '{worldLayer.LayerName}'");
+                    }
+                }
+
+                // Restore tileset references
+                if (visualLayerData.tilesetReferences != null && visualLayerData.tilesetReferences.Count > 0)
+                {
+                    visualLayer.Tilesets.Clear();
+                    foreach (var tilesetRef in visualLayerData.tilesetReferences)
+                    {
+                        if (string.IsNullOrEmpty(tilesetRef.assetPath)) continue;
+
+                        var tileset = AssetDatabase.LoadAssetAtPath<Tileset>(tilesetRef.assetPath);
+                        if (tileset != null)
+                            visualLayer.AddTileset(tileset, tilesetRef.weight);
+                        else
+                            Debug.LogWarning($"[WorldSaveManager] Tileset not found: {tilesetRef.assetPath}");
+                    }
+                }
+
+                EditorUtility.SetDirty(visualLayer);
+            }
+
+            Debug.Log($"[WorldSaveManager] Applied {saveData.visualLayers.Count} visual layers");
+#else
+            Debug.LogWarning("[WorldSaveManager] Visual layer loading from asset paths only works in Editor");
+#endif
         }
 
         private static WorldLayer FindLayerByGuid(GridManager gridManager, string guid)
@@ -231,9 +350,6 @@ namespace CozyWorldGeneration.Core.SaveSystem
             return null;
         }
 
-        /// <summary>
-        /// Gets all available save files
-        /// </summary>
         public static string[] GetAvailableSaves(SaveFormat format = SaveFormat.JSON)
         {
             var extension = format == SaveFormat.JSON ? "*.json" : "*.dat";
@@ -245,15 +361,12 @@ namespace CozyWorldGeneration.Core.SaveSystem
 
             var files = Directory.GetFiles(directory, extension);
 
-            // Extract just the world names
-            for (var i = 0; i < files.Length; i++) files[i] = Path.GetFileNameWithoutExtension(files[i]);
+            for (var i = 0; i < files.Length; i++)
+                files[i] = Path.GetFileNameWithoutExtension(files[i]);
 
             return files;
         }
 
-        /// <summary>
-        /// Deletes a save file
-        /// </summary>
         public static bool DeleteWorld(string worldName, SaveFormat format = SaveFormat.JSON)
         {
             try

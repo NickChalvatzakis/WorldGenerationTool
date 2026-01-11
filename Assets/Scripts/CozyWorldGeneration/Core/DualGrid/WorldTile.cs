@@ -1,4 +1,5 @@
 ﻿using CozyWorldGeneration.Core.Enums;
+using CozyWorldGeneration.Core.Fluids;
 using CozyWorldGeneration.Data.Layers;
 using UnityEngine;
 
@@ -11,6 +12,7 @@ namespace CozyWorldGeneration.Core.DualGrid
             GridPosition = gridPosition;
             State = TileState.Normal;
             SourceLayer = sourceLayer;
+            Fluid = null;
         }
 
         public WorldTile(int x, int y, WorldLayer sourceLayer = null) : this(new Vector2Int(x, y),
@@ -21,6 +23,10 @@ namespace CozyWorldGeneration.Core.DualGrid
         public Vector2Int GridPosition { get; private set; }
         public TileState State { get; set; }
         public WorldLayer SourceLayer { get; set; }
+        public FluidData Fluid { get; set; }
+        public bool HasFluid => Fluid != null && !Fluid.IsEmpty;
+        public bool IsSolid => SourceLayer;
+
 
         // TODO: IsWalkable/IsModifiable will be handled differently. 
         // Walkable through the collider generation so we don't actually need to know if it's walkable or not

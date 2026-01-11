@@ -1,4 +1,5 @@
-﻿using CozyWorldGeneration.Core;
+﻿using System.Collections.Generic;
+using CozyWorldGeneration.Core;
 using CozyWorldGeneration.Data.Fluids;
 using CozyWorldGeneration.Data.Layers;
 using UnityEditor;
@@ -12,7 +13,7 @@ namespace CozyWorldGeneration.Editor
     /// </summary>
     public static class GridPainterMenu
     {
-        private const string MENU_PATH = "Tools/Cozy World Generaion/";
+        private const string MENU_PATH = "Tools/Cozy World Generation/";
         private const string OVERLAY_PREF_KEY = "CozyWorld_PainterOverlayEnabled";
 
         [MenuItem(MENU_PATH + "Toggle Painter Overlay", false, 1)]
@@ -181,10 +182,10 @@ namespace CozyWorldGeneration.Editor
         {
             var gridManager = GameObject.FindAnyObjectByType<GridManager>();
 
-            if (gridManager?.FluidSimulator?.fluidGrid == null)
+            if (gridManager?.WorldGrid == null)
             {
-                EditorUtility.DisplayDialog("No FluidSimulator",
-                    "No FluidSimulator found in scene", "OK");
+                EditorUtility.DisplayDialog("No WorldGrid",
+                    "No WorldGrid found in scene", "OK");
                 return;
             }
 
@@ -193,10 +194,20 @@ namespace CozyWorldGeneration.Editor
                     "Yes", "No"))
                 return;
 
-            gridManager.FluidSimulator.fluidGrid.Clear();
-            SceneView.RepaintAll();
+            var fluidPositions = new List<Vector3Int>();
 
-            Debug.Log("Cleared all fluids");
+            foreach (var position in gridManager.WorldGrid.GetAllPositions())
+            {
+                var tile = gridManager.WorldGrid.GetTile(position);
+                if (tile?.HasFluid == true)
+                    fluidPositions.Add(position);
+            }
+
+            foreach (var pos in fluidPositions)
+                gridManager.WorldGrid.RemoveFluid(pos.x, pos.y, pos.z);
+
+            SceneView.RepaintAll();
+            Debug.Log($"Cleared {fluidPositions.Count} fluid tiles");
         }
     }
 }

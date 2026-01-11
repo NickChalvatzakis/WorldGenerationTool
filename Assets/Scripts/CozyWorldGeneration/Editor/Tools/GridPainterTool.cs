@@ -317,9 +317,6 @@ namespace CozyWorldGeneration.Editor
 
             foreach (var pos in GetBrushPositions(gridPos.Value))
                 EraseTile(pos.x, pos.y);
-
-            foreach (var pos in GetBrushPositions(gridPos.Value))
-                EraseTile(pos.x, pos.y);
         }
 
         private void PaintFluidAtMousePosition(Event e)
@@ -330,13 +327,6 @@ namespace CozyWorldGeneration.Editor
             if (gridManager.FluidSimulator == null)
             {
                 Debug.LogWarning("FluidSimulator not initialized on GridManager");
-                return;
-            }
-
-            // Add this check
-            if (gridManager.FluidSimulator.FluidGrid == null)
-            {
-                Debug.LogWarning("FluidGrid not initialized. Enter Play mode or call Initialize.");
                 return;
             }
 
@@ -442,8 +432,6 @@ namespace CozyWorldGeneration.Editor
             if (hoveredPos.HasValue)
             {
                 // Color preview based on current action
-                Handles.color = isPainting ? Color.green : isErasing ? Color.red : Color.yellow;
-
                 if (paintMode == PaintMode.Terrain)
                     Handles.color = isPainting ? Color.green : isErasing ? Color.red : Color.yellow;
                 else
@@ -456,7 +444,7 @@ namespace CozyWorldGeneration.Editor
                 }
 
                 // Show layer name when hovering (not actively painting/erasing)
-                if (selectedLayer != null && !isPainting && !isErasing)
+                if (!isPainting && !isErasing)
                 {
                     var centerWorldPos = gridManager.GridToWorldPosition(hoveredPos.Value.x, hoveredPos.Value.y);
                     string label;

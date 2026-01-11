@@ -10,6 +10,7 @@ namespace CozyWorldGeneration.Data.Layers
         [SerializeField] private string guid = System.Guid.NewGuid().ToString();
         [SerializeField] private string layerName = "New Visual Layer";
         [SerializeField] private bool isEnabled = true;
+        [SerializeField] private bool isFluidLayer = false;
 
         [Header("World Layer Reference")] [Tooltip("Which World Layer this visual layer represents")] [SerializeField]
         private WorldLayer assignedWorldLayer;
@@ -21,6 +22,13 @@ namespace CozyWorldGeneration.Data.Layers
         [Header("Settings")] [SerializeField] private float visualHeight = 0;
 
         [System.NonSerialized] public bool foldoutState = false;
+
+        public bool IsFluidLayer
+        {
+            get => isFluidLayer;
+            set => isFluidLayer = value;
+        }
+
 
         public string GUID
         {

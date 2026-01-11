@@ -8,12 +8,13 @@ namespace CozyWorldGeneration.Data.SaveSystem
     public class WorldSaveData
     {
         public string worldName;
-        public string version = "1.0";
+        public string version = "1.1"; // Bumped version
         public long timestamp;
         public string author;
 
         public GridSettings gridSettings;
         public List<LayerSaveData> layers = new();
+        public List<VisualLayerSaveData> visualLayers = new(); // NEW
 
         public WorldSaveData()
         {
@@ -28,6 +29,10 @@ namespace CozyWorldGeneration.Data.SaveSystem
         public int height;
         public int maxLevels;
         public float tileSize;
+
+        public GridSettings()
+        {
+        }
 
         public GridSettings(int width, int height, int maxLevels, float tileSize)
         {
@@ -47,7 +52,14 @@ namespace CozyWorldGeneration.Data.SaveSystem
         public SerializableColor layerColor;
         public bool isEnabled;
 
+        // NEW: Store the asset path for editor reloading
+        public string assetPath;
+
         public List<TileSaveData> tiles = new();
+
+        public LayerSaveData()
+        {
+        }
 
         public LayerSaveData(string layerName, int layerLevel, Color color)
         {
@@ -59,10 +71,51 @@ namespace CozyWorldGeneration.Data.SaveSystem
     }
 
     [Serializable]
+    public class VisualLayerSaveData
+    {
+        public string layerName;
+        public string layerGuid;
+        public bool isEnabled;
+        public bool isFluidLayer;
+        public float visualHeight;
+
+        public string assignedWorldLayerGuid;
+
+        public string assetPath;
+
+        public List<TilesetReference> tilesetReferences = new();
+
+        public VisualLayerSaveData()
+        {
+        }
+    }
+
+    [Serializable]
+    public class TilesetReference
+    {
+        public string assetPath;
+        public float weight;
+
+        public TilesetReference()
+        {
+        }
+
+        public TilesetReference(string assetPath, float weight)
+        {
+            this.assetPath = assetPath;
+            this.weight = weight;
+        }
+    }
+
+    [Serializable]
     public class TileSaveData
     {
         public int x;
         public int y;
+
+        public TileSaveData()
+        {
+        }
 
         public TileSaveData(int x, int y)
         {
@@ -75,6 +128,10 @@ namespace CozyWorldGeneration.Data.SaveSystem
     public class SerializableColor
     {
         public float r, g, b, a;
+
+        public SerializableColor()
+        {
+        }
 
         public SerializableColor(Color color)
         {

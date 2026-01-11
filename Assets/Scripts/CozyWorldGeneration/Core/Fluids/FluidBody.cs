@@ -11,12 +11,13 @@ namespace CozyWorldGeneration.Core.Fluids
         {
             BodyId = bodyId;
             Type = type;
-            Tiles = new Dictionary<Vector3Int, FluidTile>();
+            Tiles = new Dictionary<Vector3Int, FluidData>();
         }
+
 
         public int BodyId { get; set; }
         public FluidType Type { get; set; }
-        public Dictionary<Vector3Int, FluidTile> Tiles { get; set; }
+        public Dictionary<Vector3Int, FluidData> Tiles { get; set; }
 
 
         /// <summary>
@@ -35,14 +36,13 @@ namespace CozyWorldGeneration.Core.Fluids
         public int LowestLevel => Tiles.Count > 0 ? Tiles.Min(p => p.Key.z) : 0;
         public int HighestLevel => Tiles.Count > 0 ? Tiles.Max(p => p.Key.z) : 0;
 
-
-        public void AddTile(Vector3Int position, FluidTile tile)
+        public void AddTile(Vector3Int position, FluidData fluidData)
         {
-            tile.BodyId = BodyId;
-            Tiles.TryAdd(position, tile);
+            fluidData.BodyId = BodyId;
+            Tiles.TryAdd(position, fluidData);
         }
 
-        public List<FluidTile> GetTilesAtLevel(int level)
+        public List<FluidData> GetTilesAtLevel(int level)
         {
             return Tiles.Where(kvp => kvp.Key.z == level).Select(kvp => kvp.Value).ToList();
         }
@@ -54,12 +54,14 @@ namespace CozyWorldGeneration.Core.Fluids
 
         public void Settle()
         {
-            foreach (var tile in Tiles.Values) tile.IsSettled = true;
+            foreach (var fluidData in Tiles.Values)
+                fluidData.IsSettled = true;
         }
 
         public void Unsettle()
         {
-            foreach (var tile in Tiles.Values) tile.IsSettled = false;
+            foreach (var fluidData in Tiles.Values)
+                fluidData.IsSettled = false;
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using CozyWorldGeneration.Core;
 using CozyWorldGeneration.Core.SaveSystem;
 using CozyWorldGeneration.Data.Layers;
@@ -136,30 +137,25 @@ namespace CozyWorldGeneration.Editor
                 serializedObject.ApplyModifiedProperties();
             });
 
-            // Tick Rate
-            var tickRateField = new FloatField("Tick Rate")
+            // Fluid Visual Level
+            var fluidVisualLevelField = new IntegerField("Fluid Visual Level")
             {
-                value = serializedObject.FindProperty("fluidTickRate").floatValue
+                value = serializedObject.FindProperty("fluidVisualLevel").intValue
             };
-            tickRateField.RegisterValueChangedCallback(evt =>
+            fluidVisualLevelField.RegisterValueChangedCallback(evt =>
             {
-                serializedObject.FindProperty("fluidTickRate").floatValue = Mathf.Max(0.1f, evt.newValue);
+                serializedObject.FindProperty("fluidVisualLevel").intValue = evt.newValue;
                 serializedObject.ApplyModifiedProperties();
             });
 
-            var tickRateHint = new Label("Simulations per second");
-            tickRateHint.style.fontSize = 10;
-            tickRateHint.style.color = new Color(0.6f, 0.6f, 0.6f);
-            tickRateHint.style.marginBottom = 5;
-
-            // Max Levels
-            var maxLevelsField = new IntegerField("Max Fluid Levels")
+            // Fluid Visual Height Offset
+            var fluidHeightOffsetField = new FloatField("Fluid Height Offset")
             {
-                value = serializedObject.FindProperty("maxFluidLevels").intValue
+                value = serializedObject.FindProperty("fluidVisualHeightOffset").floatValue
             };
-            maxLevelsField.RegisterValueChangedCallback(evt =>
+            fluidHeightOffsetField.RegisterValueChangedCallback(evt =>
             {
-                serializedObject.FindProperty("maxFluidLevels").intValue = Mathf.Max(1, evt.newValue);
+                serializedObject.FindProperty("fluidVisualHeightOffset").floatValue = evt.newValue;
                 serializedObject.ApplyModifiedProperties();
             });
 
@@ -186,10 +182,10 @@ namespace CozyWorldGeneration.Editor
             // Update runtime info periodically
             runtimeInfoContainer.schedule.Execute(() =>
             {
-                if (gridManager != null && gridManager.FluidSimulator != null)
+                if (gridManager != null && gridManager.WorldGrid != null && gridManager.FluidSimulator != null)
                 {
-                    var fluidGrid = gridManager.FluidSimulator.fluidGrid;
-                    if (fluidGrid != null) fluidTileCountLabel.text = $"Fluid Tiles: {fluidGrid.GetTileCount()}";
+                    var fluidTileCount = gridManager.WorldGrid.GetAllFluidTiles().Count();
+                    fluidTileCountLabel.text = $"Fluid Tiles: {fluidTileCount}";
                     fluidBodyCountLabel.text = $"Fluid Bodies: {gridManager.FluidSimulator.BodyCount}";
                 }
                 else
@@ -206,16 +202,16 @@ namespace CozyWorldGeneration.Editor
             // Clear Fluids Button
             var clearFluidsBtn = new Button(() =>
             {
-                if (gridManager.FluidSimulator?.fluidGrid == null)
+                if (gridManager.WorldGrid == null)
                 {
-                    EditorUtility.DisplayDialog("No Fluids", "FluidSimulator not initialized", "OK");
+                    EditorUtility.DisplayDialog("No WorldGrid", "WorldGrid not initialized", "OK");
                     return;
                 }
 
                 if (EditorUtility.DisplayDialog("Clear All Fluids",
                         "Clear all fluid data?", "Yes", "No"))
                 {
-                    gridManager.FluidSimulator.fluidGrid.Clear();
+                    ClearAllFluids();
                     SceneView.RepaintAll();
                     Debug.Log("[GridManager] Cleared all fluids");
                 }
@@ -227,13 +223,31 @@ namespace CozyWorldGeneration.Editor
             clearFluidsBtn.style.backgroundColor = new Color(0.5f, 0.2f, 0.2f);
 
             fluidSettingsFoldout.Add(enableFluidsToggle);
-            fluidSettingsFoldout.Add(tickRateField);
-            fluidSettingsFoldout.Add(tickRateHint);
-            fluidSettingsFoldout.Add(maxLevelsField);
+            fluidSettingsFoldout.Add(fluidVisualLevelField);
+            fluidSettingsFoldout.Add(fluidHeightOffsetField);
             fluidSettingsFoldout.Add(runtimeInfoContainer);
             fluidSettingsFoldout.Add(clearFluidsBtn);
 
             root.Add(fluidSettingsFoldout);
+        }
+
+        private void ClearAllFluids()
+        {
+            if (gridManager?.WorldGrid == null) return;
+
+            var fluidPositions = new List<Vector3Int>();
+
+            foreach (var position in gridManager.WorldGrid.GetAllPositions())
+            {
+                var tile = gridManager.WorldGrid.GetTile(position);
+                if (tile?.HasFluid == true)
+                    fluidPositions.Add(position);
+            }
+
+            foreach (var pos in fluidPositions)
+                gridManager.WorldGrid.RemoveFluid(pos.x, pos.y, pos.z);
+
+            Debug.Log($"[GridManagerEditor] Cleared {fluidPositions.Count} fluid tiles");
         }
 
         private void CreateSaveLoadSection()
@@ -678,9 +692,8 @@ namespace CozyWorldGeneration.Editor
 
             var refreshTextureBtn = new Button(() =>
             {
-                layer.ForceRebuildTexture(gridManager.Width, gridManager.Height);
                 textureImage.image = layer.PreviewTexture;
-                gridManager.RefreshVisualGridForLayer(layer);
+                gridManager.RefreshAllVisualGrids();
                 SceneView.RepaintAll();
             })
             {
@@ -744,6 +757,13 @@ namespace CozyWorldGeneration.Editor
                 EditorUtility.SetDirty(layer);
             });
 
+            var fluidLayerToggle = new Toggle("Is Fluid Layer") { value = layer.IsFluidLayer };
+            fluidLayerToggle.RegisterValueChangedCallback(evt =>
+            {
+                layer.IsFluidLayer = evt.newValue;
+                EditorUtility.SetDirty(layer);
+            });
+
             var worldLayerField = new ObjectField("Assigned World Layer")
             {
                 objectType = typeof(WorldLayer),
@@ -782,6 +802,7 @@ namespace CozyWorldGeneration.Editor
 
             foldout.Add(nameField);
             foldout.Add(enabledToggle);
+            foldout.Add(fluidLayerToggle);
             foldout.Add(worldLayerField);
             foldout.Add(heightField);
             foldout.Add(tilesetsLabel);
@@ -974,13 +995,13 @@ namespace CozyWorldGeneration.Editor
                 serializedObject.ApplyModifiedProperties();
             });
 
-            var drawFluidsToggle = new Toggle("Draw Fluids")
+            var drawFluidGridToggle = new Toggle("Draw Fluid Grid")
             {
-                value = serializedObject.FindProperty("drawFluids").boolValue
+                value = serializedObject.FindProperty("drawFluidGrid").boolValue
             };
-            drawFluidsToggle.RegisterValueChangedCallback(evt =>
+            drawFluidGridToggle.RegisterValueChangedCallback(evt =>
             {
-                serializedObject.FindProperty("drawFluids").boolValue = evt.newValue;
+                serializedObject.FindProperty("drawFluidGrid").boolValue = evt.newValue;
                 serializedObject.ApplyModifiedProperties();
             });
 
@@ -1004,12 +1025,23 @@ namespace CozyWorldGeneration.Editor
                 serializedObject.ApplyModifiedProperties();
             });
 
+            var fluidGridColorPicker = new ColorField("Fluid Grid Color")
+            {
+                value = serializedObject.FindProperty("fluidGridColor").colorValue
+            };
+            fluidGridColorPicker.RegisterValueChangedCallback(evt =>
+            {
+                serializedObject.FindProperty("fluidGridColor").colorValue = evt.newValue;
+                serializedObject.ApplyModifiedProperties();
+            });
+
             debugFoldout.Add(drawGizmosToggle);
             debugFoldout.Add(drawWorldToggle);
             debugFoldout.Add(drawVisualToggle);
-            debugFoldout.Add(drawFluidsToggle);
+            debugFoldout.Add(drawFluidGridToggle);
             debugFoldout.Add(worldGridColorPicker);
             debugFoldout.Add(visualGridColorPicker);
+            debugFoldout.Add(fluidGridColorPicker);
 
             root.Add(debugFoldout);
         }

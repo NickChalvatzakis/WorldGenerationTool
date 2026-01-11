@@ -5,7 +5,6 @@ using UnityEngine.UIElements;
 using System.Collections.Generic;
 using CozyWorldGeneration.Core;
 using CozyWorldGeneration.Core.Enums;
-using CozyWorldGeneration.Core.Fluids;
 using CozyWorldGeneration.Data.Fluids;
 using CozyWorldGeneration.Data.Layers;
 
@@ -502,18 +501,29 @@ namespace CozyWorldGeneration.Editor
 
         private void ClearAllFluids()
         {
-            if (activeGridManager?.FluidSimulator?.fluidGrid == null)
+            if (activeGridManager?.WorldGrid == null)
             {
-                Debug.LogWarning("No FluidSimulator found");
+                Debug.LogWarning("No WorldGrid found");
                 return;
             }
 
             if (EditorUtility.DisplayDialog("Clear All Fluids",
                     "Clear all fluid data?", "Yes", "No"))
             {
-                activeGridManager.FluidSimulator.fluidGrid.Clear();
+                var fluidPositions = new List<Vector3Int>();
+
+                foreach (var position in activeGridManager.WorldGrid.GetAllPositions())
+                {
+                    var tile = activeGridManager.WorldGrid.GetTile(position);
+                    if (tile?.HasFluid == true)
+                        fluidPositions.Add(position);
+                }
+
+                foreach (var pos in fluidPositions)
+                    activeGridManager.WorldGrid.RemoveFluid(pos.x, pos.y, pos.z);
+
                 SceneView.RepaintAll();
-                Debug.Log("[Overlay] Cleared all fluids");
+                Debug.Log($"[Overlay] Cleared {fluidPositions.Count} fluid tiles");
             }
         }
     }

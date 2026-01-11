@@ -27,4 +27,10 @@
         Terrain,
         Fluid
     }
+
+    public enum ToolType
+    {
+        Paint,
+        Erase
+    }
 }

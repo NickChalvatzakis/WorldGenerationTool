@@ -9,6 +9,7 @@ namespace CozyWorldGeneration.Core.DualGrid
         public Vector2Int GridPosition { get; private set; }
         public int ConfigurationIndex { get; set; }
         public GameObject VisualInstance { get; set; }
+        public float FillLevel { get; set; }
 
         private VisualLayer visualLayer;
         private Tileset selectedTileset;
@@ -17,6 +18,7 @@ namespace CozyWorldGeneration.Core.DualGrid
         {
             GridPosition = new Vector2Int(x, y);
             ConfigurationIndex = 0;
+            FillLevel = 1.0f;
         }
 
         /// <summary>

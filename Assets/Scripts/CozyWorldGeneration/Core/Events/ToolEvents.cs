@@ -1,4 +1,5 @@
 ﻿using System;
+using CozyWorldGeneration.Core.DualGrid;
 using CozyWorldGeneration.Core.Enums;
 using CozyWorldGeneration.Core.Fluids;
 using CozyWorldGeneration.Data.Layers;
@@ -62,14 +63,34 @@ namespace CozyWorldGeneration.Core.Events
 
         #region Fluid Events
 
-        public static event Action<FluidTile> OnFluidPlaced;
+        /// <summary>
+        /// Fired when fluid is placed. Passes the WorldTile that has the fluid.
+        /// </summary>
+        public static event Action<WorldTile> OnFluidPlaced;
+        
+        /// <summary>
+        /// Fired when fluid is removed from a position.
+        /// </summary>
         public static event Action<Vector3Int> OnFluidRemoved;
+        
+        /// <summary>
+        /// Fired when a fluid body settles (stops flowing).
+        /// </summary>
         public static event Action<FluidBody> OnFluidBodySettled;
+        
+        /// <summary>
+        /// Fired when a settled fluid body becomes unsettled.
+        /// </summary>
         public static event Action<FluidBody> OnFluidBodyUnsettled;
 
+        /// <summary>
+        /// Fired when a fluid body spreads to new tiles.
+        /// </summary>
         public static event Action<FluidBody> OnFluidBodySpread;
 
-
+        /// <summary>
+        /// Fired each time the fluid simulation completes a tick.
+        /// </summary>
         public static event Action OnFluidSimulationTick;
 
         #endregion
@@ -139,7 +160,7 @@ namespace CozyWorldGeneration.Core.Events
         }
 
         // Fluid Events
-        public static void TriggerFluidPlaced(FluidTile tile)
+        public static void TriggerFluidPlaced(WorldTile tile)
         {
             OnFluidPlaced?.Invoke(tile);
         }
@@ -202,8 +223,17 @@ namespace CozyWorldGeneration.Core.Events
             // Grid Events
             OnTilePlaced = null;
             OnTileRemoved = null;
+            OnTileChanged = null;
             OnGridCleared = null;
             OnGridInitialized = null;
+
+            // Fluid Events
+            OnFluidPlaced = null;
+            OnFluidRemoved = null;
+            OnFluidBodySettled = null;
+            OnFluidBodyUnsettled = null;
+            OnFluidBodySpread = null;
+            OnFluidSimulationTick = null;
 
             // Painting Events
             OnPaintingStarted = null;

@@ -42,6 +42,7 @@ namespace CozyWorldGeneration.Data.Layers
             set => isEnabled = value;
         }
 
+
         public Texture2D PreviewTexture
         {
             get
