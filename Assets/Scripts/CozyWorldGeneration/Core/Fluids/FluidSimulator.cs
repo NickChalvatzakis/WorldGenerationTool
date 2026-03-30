@@ -53,7 +53,8 @@ namespace CozyWorldGeneration.Core.Fluids
             if (!WorldGrid.GetAllFluidTiles().Any()) return;
 
             RefillSources();
-            ApplyGravity(); // pull floating fluid to the first solid surface below
+            ClearWaterfallTiles();   // wipe transient column tiles from last tick
+            ApplyGravity();          // pull floating fluid to the first solid surface below
             FindConnectedBodies();
             EqualizeBodies();
             CheckSettling();
@@ -183,6 +184,27 @@ namespace CozyWorldGeneration.Core.Fluids
                 WorldGrid.RemoveFluid(pos.x, pos.y, pos.z);
         }
 
+        /// <summary>
+        /// Removes all fluid tiles marked as IsWaterfall.
+        /// Waterfall column tiles are transient visual markers — they are rebuilt fresh
+        /// each tick by CreateWaterfalls and must not persist across ticks, otherwise they
+        /// pollute EqualizeBodies (eating volume) and block CreateWaterfalls edge detection.
+        /// </summary>
+        private void ClearWaterfallTiles()
+        {
+            var tilesToRemove = new List<Vector3Int>();
+
+            foreach (var position in WorldGrid.GetAllPositions())
+            {
+                var tile = WorldGrid.GetTile(position);
+                if (tile?.Fluid != null && tile.Fluid.IsWaterfall)
+                    tilesToRemove.Add(position);
+            }
+
+            foreach (var pos in tilesToRemove)
+                WorldGrid.RemoveFluid(pos.x, pos.y, pos.z);
+        }
+
         private void SpreadBodies()
         {
             var tilesToAdd = new List<(Vector3Int pos, FluidType type, int amount)>();
@@ -280,13 +302,18 @@ namespace CozyWorldGeneration.Core.Fluids
         /// Detects surface fluid tiles (HasSolidBelow == true) that border a drop edge — a
         /// cardinal neighbour at the same level with no solid below it.
         /// For each such edge, pours fluid straight down to the first solid landing surface.
-        /// Volume is conserved: the source tile is reduced by the amount poured.
+        ///
+        /// Column layout:
+        ///   - Intermediate air tiles (edge level down to landing+1): marked IsWaterfall=true,
+        ///     carry the same fill as the edge tile for visual continuity. They are purely visual
+        ///     and get cleared at the start of every tick by ClearWaterfallTiles.
+        ///   - Landing tile: IsWaterfall=false, receives actual volume transfer so it spreads normally.
+        ///
+        /// Volume is conserved: only the landing placement drains the source edge tile.
         /// </summary>
         private void CreateWaterfalls()
         {
-            // landingPos -> (type, accumulated amount)
-            var placements = new Dictionary<Vector3Int, (FluidType type, int amount)>();
-            // sourcePos -> total volume taken this tick
+            var edgesProcessed = new HashSet<(Vector3Int, int)>();
             var reductions = new Dictionary<Vector3Int, int>();
 
             int[] dx = { 0, 1, 0, -1 };
@@ -302,47 +329,54 @@ namespace CozyWorldGeneration.Core.Fluids
                 var fill = tile.Fluid.FillAmount;
                 if (fill <= 1) continue;
 
-                for (var i = 0; i < 4; i++)
+                for (var dirIndex = 0; dirIndex < 4; dirIndex++)
                 {
-                    var nx = position.x + dx[i];
-                    var ny = position.y + dy[i];
+                    var nx = position.x + dx[dirIndex];
+                    var ny = position.y + dy[dirIndex];
                     var level = position.z;
 
                     if (!WorldGrid.IsValidPosition(nx, ny)) continue;
-                    if (WorldGrid.HasSolidBelow(nx, ny, level)) continue; // neighbour has a floor — not a drop edge
-                    if (WorldGrid.HasFluid(nx, ny, level)) continue; // edge position already occupied
+                    if (WorldGrid.HasSolidBelow(nx, ny, level)) continue;
+                    if (WorldGrid.HasSolidTile(nx, ny, level)) continue;
+                    if (WorldGrid.HasFluid(nx, ny, level)) continue;
 
                     var landingLevel = WorldGrid.FindLandingLevel(nx, ny, level - 1);
-                    if (landingLevel < 0) continue; // no solid anywhere in that column
+                    if (landingLevel < 0) continue;
+
+                    var edgeKey = (position, dirIndex);
+                    if (edgesProcessed.Contains(edgeKey)) continue;
+                    edgesProcessed.Add(edgeKey);
 
                     var spreadAmount = Mathf.Min(fill - 1, tile.Fluid.Type.SpreadRate);
                     if (spreadAmount <= 0) continue;
 
-                    var landingPos = new Vector3Int(nx, ny, landingLevel);
+                    // --- Intermediate column tiles (visual-only, IsWaterfall=true) ---
+                    for (var columnLevel = level; columnLevel > landingLevel; columnLevel--)
+                    {
+                        WorldGrid.PlaceFluid(nx, ny, columnLevel, tile.Fluid.Type, fill);
+                        var columnTile = WorldGrid.GetTile(nx, ny, columnLevel);
+                        if (columnTile?.Fluid != null)
+                            columnTile.Fluid.IsWaterfall = true;
+                    }
 
-                    // Accumulate from multiple sources pouring into the same landing spot
-                    if (placements.TryGetValue(landingPos, out var existing))
-                        placements[landingPos] = (existing.type, Mathf.Min(existing.amount + spreadAmount, 7));
-                    else
-                        placements[landingPos] = (tile.Fluid.Type, spreadAmount);
+                    // --- Landing tile (real volume transfer, IsWaterfall=false) ---
+                    WorldGrid.PlaceFluid(nx, ny, landingLevel, tile.Fluid.Type, spreadAmount);
+                    var landing = WorldGrid.GetTile(nx, ny, landingLevel);
+                    if (landing?.Fluid != null)
+                        landing.Fluid.IsWaterfall = false;
 
-                    // Track how much this source tile is giving up
                     reductions.TryGetValue(position, out var currentReduction);
                     reductions[position] = currentReduction + spreadAmount;
                 }
             }
 
-            // Volume conservation: drain the source tiles (leave at least 1 unit so they don't vanish)
+            // Drain source edge tiles (keep at least 1 unit)
             foreach (var kvp in reductions)
             {
                 var sourceTile = WorldGrid.GetTile(kvp.Key);
                 if (sourceTile?.Fluid != null)
                     sourceTile.Fluid.RemoveFillAmount(Mathf.Min(kvp.Value, sourceTile.Fluid.FillAmount - 1));
             }
-
-            // Place fluid at landing spots — normal tiles that spread freely from there
-            foreach (var kvp in placements)
-                WorldGrid.PlaceFluid(kvp.Key.x, kvp.Key.y, kvp.Key.z, kvp.Value.type, kvp.Value.amount);
         }
 
         private void CheckSettling()
