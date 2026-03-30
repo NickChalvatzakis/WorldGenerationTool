@@ -13,7 +13,7 @@ namespace CozyWorldGeneration.Core.DualGrid
         private bool checkAllLevels; // For fluid visuals that need to check all levels
         public Vector2 Offset { get; private set; }
         public Transform TilesContainer { get; set; }
-        public float TileSize { get; set; }
+        public float TileHeightOffset { get; set; }
 
         // The 4 neighbour offsets for a visual tile
         // |_0_|_1_|
@@ -29,14 +29,15 @@ namespace CozyWorldGeneration.Core.DualGrid
         // Delegate to get VisualLayer for a WorldLayer (set by GridManager)
         public Func<WorldLayer, VisualLayer> GetVisualLayerForWorldLayer { get; set; }
 
-        public VisualGrid(int width, int height, WorldGrid worldGrid, WorldLayer worldLayer, float tileSize = 1f,
+        public VisualGrid(int width, int height, WorldGrid worldGrid, WorldLayer worldLayer,
+            float tileHeightOffset = 1f,
             bool checkAllLevels = false) : base(width, height)
         {
             this.worldGrid = worldGrid;
             this.worldLayer = worldLayer;
             level = worldLayer?.LayerLevel ?? 0;
             this.checkAllLevels = checkAllLevels;
-            TileSize = tileSize;
+            TileHeightOffset = tileHeightOffset;
             Offset = new Vector2(0.5f, 0.5f);
 
             InitializeVisualCells();
@@ -69,52 +70,85 @@ namespace CozyWorldGeneration.Core.DualGrid
 
             // Get the visual layer to check if it's a fluid layer
             var visualLayer = GetVisualLayerForWorldLayer?.Invoke(worldLayer);
-            var isFluidLayer = visualLayer?.IsFluidLayer ?? false;
 
             // Check the 4 corners - for fluids OR solid tiles depending on layer type
-            var bottomLeft = isFluidLayer
-                ? HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y)
-                : worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y, worldLayer);
+            var bottomLeft =
+                worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y, worldLayer);
 
-            var bottomRight = isFluidLayer
-                ? HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y)
-                : worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y, worldLayer);
+            var bottomRight =
+                worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y, worldLayer);
 
-            var topLeft = isFluidLayer
-                ? HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y)
-                : worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y, worldLayer);
+            var topLeft = worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y, worldLayer);
 
-            var topRight = isFluidLayer
-                ? HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y)
-                : worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y, worldLayer);
+            var topRight =
+                worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y, worldLayer);
 
             tile.ConfigurationIndex = CalculateConfiguration(bottomLeft, bottomRight, topLeft, topRight);
-
-            if (isFluidLayer)
-            {
-                var totalFill = 0f;
-                var filledCount = 0;
-
-                foreach (var offset in NEIGHBOUR_OFFSETS)
-                {
-                    var fluidTile = GetFluidTileAtPosition(x + offset.x, y + offset.y);
-                    if (fluidTile?.Fluid != null)
-                    {
-                        totalFill += fluidTile.Fluid.FillLevel;
-                        filledCount++;
-                    }
-                }
-
-                if (filledCount > 0)
-                    tile.FillLevel = totalFill / filledCount;
-            }
-
 
             if (visualLayer != null)
                 tile.SetVisualLayer(visualLayer);
 
+
             if (TilesContainer != null)
-                tile.UpdateVisual(TilesContainer, TileSize);
+                tile.UpdateVisual(TilesContainer, TileHeightOffset);
+        }
+
+        public void UpdateVisualFluidTile(int x, int y)
+        {
+            if (worldGrid == null)
+            {
+                Debug.LogWarning("VisualGrid: WorldGrid reference is null");
+                return;
+            }
+
+            var tile = GetTile(x, y);
+            if (tile == null)
+                return;
+
+            // Get the visual layer to check if it's a fluid layer
+            var visualLayer = GetVisualLayerForWorldLayer?.Invoke(worldLayer);
+            var isFluidLayer = visualLayer?.IsFluidLayer ?? false;
+
+            if (!isFluidLayer) return;
+
+            var bottomLeft = HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y);
+
+            var bottomRight = HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y);
+
+            var topLeft = HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y);
+
+            var topRight = HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y);
+
+            tile.ConfigurationIndex = CalculateConfiguration(bottomLeft, bottomRight, topLeft, topRight);
+
+
+            var totalFill = 0f;
+            var filledCount = 0;
+            var totalFlowDirection = Vector2.zero;
+
+            foreach (var offset in NEIGHBOUR_OFFSETS)
+            {
+                var fluidTile = GetFluidTileAtPosition(x + offset.x, y + offset.y);
+                if (fluidTile?.Fluid != null)
+                {
+                    totalFill += fluidTile.Fluid.FillLevel;
+                    totalFlowDirection += fluidTile.Fluid.FlowDirection;
+                    filledCount++;
+                }
+            }
+
+            if (filledCount > 0)
+            {
+                tile.FillLevel = totalFill / filledCount;
+                totalFlowDirection /= filledCount;
+            }
+
+            if (visualLayer != null)
+                tile.SetVisualLayer(visualLayer);
+
+
+            if (TilesContainer != null)
+                tile.UpdateVisual(TilesContainer, TileHeightOffset, tile.FillLevel, totalFlowDirection);
         }
 
         /// <summary>
@@ -126,10 +160,8 @@ namespace CozyWorldGeneration.Core.DualGrid
             {
                 // Check all levels for any fluid
                 for (var checkLevel = 0; checkLevel < 10; checkLevel++)
-                {
                     if (worldGrid.HasFluid(x, y, checkLevel))
                         return true;
-                }
                 return false;
             }
             else
@@ -153,6 +185,7 @@ namespace CozyWorldGeneration.Core.DualGrid
                     if (tile?.Fluid != null)
                         return tile;
                 }
+
                 return null;
             }
             else
@@ -180,9 +213,15 @@ namespace CozyWorldGeneration.Core.DualGrid
         /// </summary>
         public void UpdateAllVisuals()
         {
+            // Fluid grids must use fluid-specific update logic.
+            var isFluidLayer = GetVisualLayerForWorldLayer?.Invoke(worldLayer)?.IsFluidLayer ?? false;
+
             for (var x = 0; x < Width; x++)
             for (var y = 0; y < Height; y++)
-                UpdateVisualTile(x, y);
+                if (isFluidLayer)
+                    UpdateVisualFluidTile(x, y);
+                else
+                    UpdateVisualTile(x, y);
         }
 
         /// <summary>

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using CozyWorldGeneration.Core;
 using CozyWorldGeneration.Core.Enums;
 using CozyWorldGeneration.Data.Fluids;
@@ -345,7 +346,8 @@ namespace CozyWorldGeneration.Editor
             foreach (var pos in GetBrushPositions(gridPos.Value))
             {
                 var level = GetTerrainLevelAt(pos.x, pos.y) + 1;
-                Debug.Log($"[GridPainterTool] Terrain level at ({pos.x}, {pos.y}): {level - 1}, placing fluid at level: {level}");
+                Debug.Log(
+                    $"[GridPainterTool] Terrain level at ({pos.x}, {pos.y}): {level - 1}, placing fluid at level: {level}");
                 PaintFluid(pos.x, pos.y, level);
             }
         }
@@ -463,13 +465,27 @@ namespace CozyWorldGeneration.Editor
                     string label;
 
                     if (paintMode == PaintMode.Terrain)
+                    {
                         label = selectedLayer != null ? $"Paint: {selectedLayer.LayerName}" : "No layer selected";
+                    }
                     else
-                        label = selectedFluidType != null
-                            ? $"Paint: {selectedFluidType.FluidName} ({fluidAmount}/7){(placeAsSource ? " [SOURCE]" : "")}"
-                            : "No fluid type selected";
+                    {
+                        var fluidTiles = gridManager.WorldGrid.GetAllFluidTiles();
+                        if (fluidTiles != null)
+                        {
+                            var hoveredFluidTiles = fluidTiles.Where(tile =>
+                                tile.GridPosition == hoveredPos.Value && tile.HasFluid);
 
-                    Handles.Label(centerWorldPos + Vector3.up * 0.5f, label, EditorStyles.helpBox);
+                            foreach (var tile in hoveredFluidTiles)
+                            {
+                                label = selectedFluidType != null
+                                    ? $"Paint: {selectedFluidType.FluidName} ({tile.Fluid.FillAmount}/7){(tile.Fluid.IsSource ? " [SOURCE]" : "")}"
+                                    : "No fluid type selected";
+                                Handles.Label(centerWorldPos + Vector3.up * 0.5f, label,
+                                    EditorStyles.helpBox);
+                            }
+                        }
+                    }
                 }
             }
         }

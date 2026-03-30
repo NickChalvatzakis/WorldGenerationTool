@@ -77,6 +77,8 @@ namespace CozyWorldGeneration.Editor
             gridManager = target as GridManager;
             root = new VisualElement();
 
+            gridManager.InitializeGrids();
+            gridManager.LoadWorld();
             CreateGridSettingsSection();
             CreateFluidSettingsSection();
             CreateSaveLoadSection();

@@ -193,29 +193,33 @@ namespace CozyWorldGeneration.Core.Fluids
                 {
                     var position = kvp.Key;
                     var fluidData = kvp.Value;
+                    var totalSpread = 0;
+                    var startingAmount = fluidData.FillAmount;
 
-                    if (fluidData.FillAmount <= 1) continue;
+                    if (startingAmount <= 1) continue;
 
-                    var spreadPositions = WorldGrid.GetFluidSpreadPositions(
-                        position.x, position.y, position.z);
-
+                    var spreadPositions = WorldGrid.GetFluidSpreadPositions(position.x, position.y, position.z);
                     if (spreadPositions.Count == 0) continue;
 
                     spreadPositions = spreadPositions.OrderBy(p => p.z).ToList();
 
                     foreach (var targetPos in spreadPositions)
                     {
-                        var spreadAmount = CalculateSpreadAmount(fluidData, targetPos, position);
-                        if (spreadAmount > 0)
-                        {
-                            tilesToAdd.Add((targetPos, fluidData.Type, spreadAmount));
-                            fluidData.RemoveFillAmount(spreadAmount);
-                        }
+                        var remaining = startingAmount - totalSpread;
+                        if (remaining <= 1) break;
+
+                        var spreadAmount =
+                            CalculateSpreadAmount(remaining, fluidData.Type.SpreadRate, targetPos, position);
+                        if (spreadAmount <= 0) continue;
+
+                        tilesToAdd.Add((targetPos, fluidData.Type, spreadAmount));
+                        totalSpread += spreadAmount;
 
                         Debug.Log($"[FluidSimulator] Spread {spreadAmount} from {position} to {targetPos}");
-
-                        if (fluidData.FillAmount <= 1) break;
                     }
+
+                    if (totalSpread > 0)
+                        fluidData.RemoveFillAmount(totalSpread);
                 }
             }
 
@@ -223,13 +227,16 @@ namespace CozyWorldGeneration.Core.Fluids
                 WorldGrid.PlaceFluid(pos.x, pos.y, pos.z, type, amount);
         }
 
-        private int CalculateSpreadAmount(FluidData fluidData, Vector3Int targetPos, Vector3Int position)
+        private int CalculateSpreadAmount(int remainingAmount, int spreadRate, Vector3Int targetPos,
+            Vector3Int position)
         {
+            if (remainingAmount <= 1) return 0;
+
             var isBelow = targetPos.z < position.z;
             if (isBelow)
-                return Mathf.Min(fluidData.FillAmount - 1, fluidData.Type.SpreadRate);
+                return Mathf.Min(remainingAmount - 1, spreadRate);
             else
-                return Mathf.Min(fluidData.FillAmount / 2, fluidData.Type.SpreadRate);
+                return Mathf.Min(remainingAmount / 2, spreadRate);
         }
 
         private void CheckSettling()
@@ -292,16 +299,31 @@ namespace CozyWorldGeneration.Core.Fluids
                 }
                 else if (remainingVolume > 0)
                 {
-                    var perTile = remainingVolume / fluidDataList.Count;
-                    var remainder = remainingVolume % fluidDataList.Count;
+                    // Keep positions so we can prioritize tiles that can actually spread.
+                    var levelTiles = levelGroup.ToList();
+                    capacity = levelTiles.Count * 7;
+                    var clampedVolume = Mathf.Min(remainingVolume, capacity);
 
-                    foreach (var fluidData in fluidDataList)
-                        fluidData.FillAmount = perTile;
+                    var perTile = clampedVolume / levelTiles.Count;
+                    var remainder = clampedVolume % levelTiles.Count;
 
-                    for (var i = 0; i < remainder; i++)
-                        fluidDataList[i].AddFillAmount(1);
+                    foreach (var kvp in levelTiles)
+                        kvp.Value.FillAmount = perTile;
 
-                    remainingVolume = 0;
+                    // Prefer giving +1 to frontier tiles (tiles with at least one spreadable neighbor).
+                    var frontierFirst = levelTiles
+                        .OrderByDescending(kvp =>
+                            WorldGrid.GetFluidSpreadPositions(kvp.Key.x, kvp.Key.y, kvp.Key.z).Count)
+                        .ThenBy(kvp => kvp.Key.z)
+                        .ToList();
+
+                    for (var i = 0; i < frontierFirst.Count && remainder > 0; i++)
+                    {
+                        frontierFirst[i].Value.AddFillAmount(1);
+                        remainder--;
+                    }
+
+                    remainingVolume -= clampedVolume;
                 }
 
                 if (remainingVolume == 0) break;

@@ -34,7 +34,8 @@ namespace CozyWorldGeneration.Core.DualGrid
         /// <summary>
         /// Updates the visual representation based on configuration index and tileset.
         /// </summary>
-        public void UpdateVisual(Transform parent, float tileSize)
+        public void UpdateVisual(Transform parent, float tileHeightOffset, float tileSize = 1.0f,
+            Vector2 flowDirection = default)
         {
             // Destroy old visual if it exists
             if (VisualInstance != null)
@@ -69,12 +70,13 @@ namespace CozyWorldGeneration.Core.DualGrid
 
             // Position and rotate
             var worldPos = new Vector3(
-                (GridPosition.x + 1.0f) * tileSize,
+                (GridPosition.x + 1.0f) * tileHeightOffset,
                 finalY,
-                (GridPosition.y + 1.0f) * tileSize
+                (GridPosition.y + 1.0f) * tileHeightOffset
             );
             VisualInstance.transform.position = worldPos;
             VisualInstance.transform.rotation = config.GetRotation();
+            VisualInstance.transform.localScale = new Vector3(1.0f, tileSize, 1.0f);
 
             // Add mesh components
             var meshFilter = VisualInstance.AddComponent<MeshFilter>();
@@ -82,6 +84,8 @@ namespace CozyWorldGeneration.Core.DualGrid
 
             var meshRenderer = VisualInstance.AddComponent<MeshRenderer>();
             meshRenderer.material = config.material;
+
+            meshRenderer.sharedMaterial.SetVector("_FlowDirection", flowDirection);
         }
 
         /// <summary>

@@ -386,11 +386,12 @@ namespace CozyWorldGeneration.Core
 
             Debug.Log($"[GridManager] HandleFluidChanged at ({x}, {y}) FillLevel: {tile.Fluid.FillLevel}");
 
+
             // Update the visual tiles around this position
-            fluidVisualGrid.UpdateVisualTile(x - 1, y - 1);
-            fluidVisualGrid.UpdateVisualTile(x, y - 1);
-            fluidVisualGrid.UpdateVisualTile(x - 1, y);
-            fluidVisualGrid.UpdateVisualTile(x, y);
+            fluidVisualGrid.UpdateVisualFluidTile(x - 1, y - 1);
+            fluidVisualGrid.UpdateVisualFluidTile(x, y - 1);
+            fluidVisualGrid.UpdateVisualFluidTile(x - 1, y);
+            fluidVisualGrid.UpdateVisualFluidTile(x, y);
         }
 
         /// <summary>
@@ -405,10 +406,10 @@ namespace CozyWorldGeneration.Core
             var y = position.y;
 
             // Update the visual tiles around this position
-            fluidVisualGrid.UpdateVisualTile(x - 1, y - 1);
-            fluidVisualGrid.UpdateVisualTile(x, y - 1);
-            fluidVisualGrid.UpdateVisualTile(x - 1, y);
-            fluidVisualGrid.UpdateVisualTile(x, y);
+            fluidVisualGrid.UpdateVisualFluidTile(x - 1, y - 1);
+            fluidVisualGrid.UpdateVisualFluidTile(x, y - 1);
+            fluidVisualGrid.UpdateVisualFluidTile(x - 1, y);
+            fluidVisualGrid.UpdateVisualFluidTile(x, y);
         }
 
         public void PlaceTile(int x, int y, WorldLayer layer, ToolType toolType)

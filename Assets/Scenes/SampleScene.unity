@@ -315,9 +315,11 @@ MonoBehaviour:
     - {fileID: 11400000, guid: daac8df6ac95bfe418399204a7bf0cfd, type: 2}
     - {fileID: 11400000, guid: cac16d181037dee4d96f286a173ac764, type: 2}
     - {fileID: 11400000, guid: 5311d2ea9605fe64aaa6df2468af28df, type: 2}
+    - {fileID: 11400000, guid: 796aa6d48eab6b348974abeed24c05af, type: 2}
+    - {fileID: 11400000, guid: 2c0a30d41a5b27840b96f9a9ac40f716, type: 2}
   visualLayerCollection: {fileID: 632592523}
   worldName: Testing
-  autoLoadOnStart: 0
+  autoLoadOnStart: 1
   saveFormat: 0
   drawGizmos: 1
   drawWorldGrid: 1
@@ -338,7 +340,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fe1a47a9bd2440f9abaac47380b2973, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CozyWorldGeneration.Core.Fluids.FluidSimulator
-  tickRate: 5
+  tickRate: 10
   simulateInEditor: 1
 --- !u!1 &410087039
 GameObject:

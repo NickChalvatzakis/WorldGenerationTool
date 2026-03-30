@@ -8,7 +8,8 @@ namespace CozyWorldGeneration.Core.Fluids
         public FluidData(FluidType type, int fillAmount = 0)
         {
             Type = type;
-            FillAmount = fillAmount;
+            FillAmount = Mathf.Clamp(fillAmount, 0, 7);
+            ;
             BodyId = -1;
             IsSource = false;
             IsSettled = false;

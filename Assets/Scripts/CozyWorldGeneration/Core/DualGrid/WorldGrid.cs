@@ -76,9 +76,14 @@ namespace CozyWorldGeneration.Core.DualGrid
 
             // Create or update fluid data
             if (tile.Fluid == null)
+            {
                 tile.Fluid = new FluidData(type, fillLevel);
+            }
             else
+            {
                 tile.Fluid.AddFillAmount(fillLevel);
+                tile.Fluid.IsSettled = false;
+            }
 
             if (!SuppressEvents)
                 ToolEvents.TriggerFluidPlaced(tile);
@@ -108,9 +113,10 @@ namespace CozyWorldGeneration.Core.DualGrid
         {
             var neighbourPositions = GetAllCardinalNeighbours(x, y, level);
             var spreadablePositions = neighbourPositions
-                .Where(position => position.z <= level) // Only spread sideways or down
-                .Where(position => !HasFluid(position.x, position.y, position.z)) // No fluid already
-                .Where(position => !HasSolidTile(position.x, position.y, position.z)) // No solid blocking
+                .Where(position => IsValidPosition(position))
+                .Where(position => position.z <= level)
+                .Where(position => !HasFluid(position.x, position.y, position.z))
+                .Where(position => !HasSolidTile(position.x, position.y, position.z))
                 .ToList();
 
             return spreadablePositions;
