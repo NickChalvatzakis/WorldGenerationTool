@@ -57,6 +57,28 @@ namespace CozyWorldGeneration.Core.DualGrid
             return tile != null && tile.IsSolid;
         }
 
+        /// <summary>
+        /// Returns true if this position has solid support directly below it,
+        /// or is at grid level 0 (the conceptual ground floor).
+        /// </summary>
+        public bool HasSolidBelow(int x, int y, int level)
+        {
+            return level == 0 || HasSolidTile(x, y, level - 1);
+        }
+
+        /// <summary>
+        /// Scans the column at (x, y) downward from fromLevel to find the first solid tile.
+        /// Returns solidLevel + 1 (the first empty level above that solid), or -1 if no solid found.
+        /// </summary>
+        public int FindLandingLevel(int x, int y, int fromLevel)
+        {
+            if (fromLevel < 0) return -1;
+            for (var scanLevel = fromLevel; scanLevel >= 0; scanLevel--)
+                if (HasSolidTile(x, y, scanLevel))
+                    return scanLevel + 1;
+            return -1;
+        }
+
         #endregion
 
         #region Fluids
@@ -109,17 +131,32 @@ namespace CozyWorldGeneration.Core.DualGrid
             return tile != null && tile.HasFluid;
         }
 
+        /// <summary>
+        /// Returns the horizontal neighbours at the same level that fluid can spread into:
+        /// they must be empty (no solid, no fluid) and must have solid support below them.
+        /// Downward spread is handled separately by ApplyGravity / CreateWaterfalls.
+        /// </summary>
         public List<Vector3Int> GetFluidSpreadPositions(int x, int y, int level)
         {
-            var neighbourPositions = GetAllCardinalNeighbours(x, y, level);
-            var spreadablePositions = neighbourPositions
-                .Where(position => IsValidPosition(position))
-                .Where(position => position.z <= level)
-                .Where(position => !HasFluid(position.x, position.y, position.z))
-                .Where(position => !HasSolidTile(position.x, position.y, position.z))
-                .ToList();
+            var result = new List<Vector3Int>(4);
+            Vector3Int[] horizontal =
+            {
+                new(x, y + 1, level),
+                new(x + 1, y, level),
+                new(x, y - 1, level),
+                new(x - 1, y, level)
+            };
 
-            return spreadablePositions;
+            foreach (var pos in horizontal)
+            {
+                if (!IsValidPosition(pos.x, pos.y)) continue;
+                if (HasFluid(pos.x, pos.y, pos.z)) continue;
+                if (HasSolidTile(pos.x, pos.y, pos.z)) continue;
+                if (!HasSolidBelow(pos.x, pos.y, pos.z)) continue; // must have a surface to stand on
+                result.Add(pos);
+            }
+
+            return result;
         }
 
         public IEnumerable<WorldTile> GetAllFluidTiles()

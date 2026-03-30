@@ -53,10 +53,12 @@ namespace CozyWorldGeneration.Core.Fluids
             if (!WorldGrid.GetAllFluidTiles().Any()) return;
 
             RefillSources();
+            ApplyGravity(); // pull floating fluid to the first solid surface below
             FindConnectedBodies();
             EqualizeBodies();
             CheckSettling();
-            SpreadBodies();
+            SpreadBodies(); // horizontal surface-only spread
+            CreateWaterfalls(); // edge detection + column fall to landing
             CleanupEmptyTiles();
             UpdateFlowDirections();
 
@@ -193,6 +195,9 @@ namespace CozyWorldGeneration.Core.Fluids
                 {
                     var position = kvp.Key;
                     var fluidData = kvp.Value;
+
+                    if (fluidData.IsWaterfall) continue; // waterfall tiles don't spread horizontally
+
                     var totalSpread = 0;
                     var startingAmount = fluidData.FillAmount;
 
@@ -201,21 +206,16 @@ namespace CozyWorldGeneration.Core.Fluids
                     var spreadPositions = WorldGrid.GetFluidSpreadPositions(position.x, position.y, position.z);
                     if (spreadPositions.Count == 0) continue;
 
-                    spreadPositions = spreadPositions.OrderBy(p => p.z).ToList();
-
                     foreach (var targetPos in spreadPositions)
                     {
                         var remaining = startingAmount - totalSpread;
                         if (remaining <= 1) break;
 
-                        var spreadAmount =
-                            CalculateSpreadAmount(remaining, fluidData.Type.SpreadRate, targetPos, position);
+                        var spreadAmount = CalculateSpreadAmount(remaining, fluidData.Type.SpreadRate);
                         if (spreadAmount <= 0) continue;
 
                         tilesToAdd.Add((targetPos, fluidData.Type, spreadAmount));
                         totalSpread += spreadAmount;
-
-                        Debug.Log($"[FluidSimulator] Spread {spreadAmount} from {position} to {targetPos}");
                     }
 
                     if (totalSpread > 0)
@@ -227,16 +227,122 @@ namespace CozyWorldGeneration.Core.Fluids
                 WorldGrid.PlaceFluid(pos.x, pos.y, pos.z, type, amount);
         }
 
-        private int CalculateSpreadAmount(int remainingAmount, int spreadRate, Vector3Int targetPos,
-            Vector3Int position)
+        private int CalculateSpreadAmount(int remainingAmount, int spreadRate)
         {
             if (remainingAmount <= 1) return 0;
+            return Mathf.Min(remainingAmount / 2, spreadRate);
+        }
 
-            var isBelow = targetPos.z < position.z;
-            if (isBelow)
-                return Mathf.Min(remainingAmount - 1, spreadRate);
-            else
-                return Mathf.Min(remainingAmount / 2, spreadRate);
+        /// <summary>
+        /// Moves any fluid tile that has no solid support below it (and is not a waterfall tile)
+        /// to the first solid landing surface in its column.
+        /// Fluid with no landing at all (empty column) is removed.
+        /// </summary>
+        private void ApplyGravity()
+        {
+            var toMove = new List<(Vector3Int from, int landingLevel, FluidType type, int amount, bool isSource)>();
+            var toRemove = new List<Vector3Int>();
+
+            foreach (var position in WorldGrid.GetAllPositions().ToList())
+            {
+                var tile = WorldGrid.GetTile(position);
+                if (tile?.Fluid == null) continue;
+                if (tile.Fluid.IsWaterfall) continue; // waterfall tiles are intentionally floating
+                if (WorldGrid.HasSolidBelow(position.x, position.y, position.z)) continue; // already supported
+
+                var landingLevel = WorldGrid.FindLandingLevel(position.x, position.y, position.z - 1);
+                if (landingLevel < 0)
+                {
+                    toRemove.Add(position); // no solid anywhere below — remove
+                    continue;
+                }
+
+                toMove.Add((position, landingLevel, tile.Fluid.Type, tile.Fluid.FillAmount, tile.Fluid.IsSource));
+            }
+
+            foreach (var pos in toRemove)
+                WorldGrid.RemoveFluid(pos.x, pos.y, pos.z);
+
+            foreach (var (from, landingLevel, type, amount, isSource) in toMove)
+            {
+                WorldGrid.RemoveFluid(from.x, from.y, from.z);
+                WorldGrid.PlaceFluid(from.x, from.y, landingLevel, type, amount);
+                if (isSource)
+                {
+                    var landingTile = WorldGrid.GetTile(from.x, from.y, landingLevel);
+                    if (landingTile?.Fluid != null)
+                        landingTile.Fluid.IsSource = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Detects surface fluid tiles (HasSolidBelow == true) that border a drop edge — a
+        /// cardinal neighbour at the same level with no solid below it.
+        /// For each such edge, pours fluid straight down to the first solid landing surface.
+        /// Volume is conserved: the source tile is reduced by the amount poured.
+        /// </summary>
+        private void CreateWaterfalls()
+        {
+            // landingPos -> (type, accumulated amount)
+            var placements = new Dictionary<Vector3Int, (FluidType type, int amount)>();
+            // sourcePos -> total volume taken this tick
+            var reductions = new Dictionary<Vector3Int, int>();
+
+            int[] dx = { 0, 1, 0, -1 };
+            int[] dy = { 1, 0, -1, 0 };
+
+            foreach (var position in WorldGrid.GetAllPositions().ToList())
+            {
+                var tile = WorldGrid.GetTile(position);
+                if (tile?.Fluid == null) continue;
+                if (tile.Fluid.IsWaterfall) continue;
+                if (!WorldGrid.HasSolidBelow(position.x, position.y, position.z)) continue;
+
+                var fill = tile.Fluid.FillAmount;
+                if (fill <= 1) continue;
+
+                for (var i = 0; i < 4; i++)
+                {
+                    var nx = position.x + dx[i];
+                    var ny = position.y + dy[i];
+                    var level = position.z;
+
+                    if (!WorldGrid.IsValidPosition(nx, ny)) continue;
+                    if (WorldGrid.HasSolidBelow(nx, ny, level)) continue; // neighbour has a floor — not a drop edge
+                    if (WorldGrid.HasFluid(nx, ny, level)) continue; // edge position already occupied
+
+                    var landingLevel = WorldGrid.FindLandingLevel(nx, ny, level - 1);
+                    if (landingLevel < 0) continue; // no solid anywhere in that column
+
+                    var spreadAmount = Mathf.Min(fill - 1, tile.Fluid.Type.SpreadRate);
+                    if (spreadAmount <= 0) continue;
+
+                    var landingPos = new Vector3Int(nx, ny, landingLevel);
+
+                    // Accumulate from multiple sources pouring into the same landing spot
+                    if (placements.TryGetValue(landingPos, out var existing))
+                        placements[landingPos] = (existing.type, Mathf.Min(existing.amount + spreadAmount, 7));
+                    else
+                        placements[landingPos] = (tile.Fluid.Type, spreadAmount);
+
+                    // Track how much this source tile is giving up
+                    reductions.TryGetValue(position, out var currentReduction);
+                    reductions[position] = currentReduction + spreadAmount;
+                }
+            }
+
+            // Volume conservation: drain the source tiles (leave at least 1 unit so they don't vanish)
+            foreach (var kvp in reductions)
+            {
+                var sourceTile = WorldGrid.GetTile(kvp.Key);
+                if (sourceTile?.Fluid != null)
+                    sourceTile.Fluid.RemoveFillAmount(Mathf.Min(kvp.Value, sourceTile.Fluid.FillAmount - 1));
+            }
+
+            // Place fluid at landing spots — normal tiles that spread freely from there
+            foreach (var kvp in placements)
+                WorldGrid.PlaceFluid(kvp.Key.x, kvp.Key.y, kvp.Key.z, kvp.Value.type, kvp.Value.amount);
         }
 
         private void CheckSettling()
@@ -384,8 +490,6 @@ namespace CozyWorldGeneration.Core.Fluids
 
         public void AddFluid(int x, int y, int level, FluidType type, int amount, bool isSource)
         {
-            Debug.Log(
-                $"[FluidSimulator] Adding fluid at ({x}, {y}, {level}) - Type: {type.FluidName}, Amount: {amount}");
             WorldGrid.PlaceFluid(x, y, level, type, amount);
             SetSource(x, y, level, isSource);
         }
