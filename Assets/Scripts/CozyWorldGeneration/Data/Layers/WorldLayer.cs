@@ -192,6 +192,15 @@ namespace CozyWorldGeneration.Data.Layers
             if (textureData != null && textureData.Length > 0)
                 RebuildTextureFromData();
         }
+
+        /// <summary>
+        /// Assigns a fresh GUID. Called automatically by LayerGuidValidator when a
+        /// duplicate is detected (e.g. after copy-pasting this asset in the Project window).
+        /// </summary>
+        public void RegenerateGuid()
+        {
+            guid = Guid.NewGuid().ToString();
+        }
 #endif
     }
 }

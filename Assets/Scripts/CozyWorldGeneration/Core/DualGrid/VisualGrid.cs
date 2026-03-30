@@ -105,34 +105,30 @@ namespace CozyWorldGeneration.Core.DualGrid
             if (tile == null)
                 return;
 
-            // Get the visual layer to check if it's a fluid layer
             var visualLayer = GetVisualLayerForWorldLayer?.Invoke(worldLayer);
             var isFluidLayer = visualLayer?.IsFluidLayer ?? false;
-
             if (!isFluidLayer) return;
 
             var bottomLeft = HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y);
-
             var bottomRight = HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[1].x, y + NEIGHBOUR_OFFSETS[1].y);
-
             var topLeft = HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[2].x, y + NEIGHBOUR_OFFSETS[2].y);
-
             var topRight = HasFluidAtPosition(x + NEIGHBOUR_OFFSETS[3].x, y + NEIGHBOUR_OFFSETS[3].y);
 
             tile.ConfigurationIndex = CalculateConfiguration(bottomLeft, bottomRight, topLeft, topRight);
 
-
             var totalFill = 0f;
             var filledCount = 0;
             var totalFlowDirection = Vector2.zero;
+            var highestFluidLevel = -1;
 
             foreach (var offset in NEIGHBOUR_OFFSETS)
             {
-                var fluidTile = GetFluidTileAtPosition(x + offset.x, y + offset.y);
-                if (fluidTile?.Fluid != null)
+                var sample = GetFluidTileAndLevelAtPosition(x + offset.x, y + offset.y);
+                if (sample.HasValue && sample.Value.tile.Fluid != null)
                 {
-                    totalFill += fluidTile.Fluid.FillLevel;
-                    totalFlowDirection += fluidTile.Fluid.FlowDirection;
+                    totalFill += sample.Value.tile.Fluid.FillLevel;
+                    totalFlowDirection += sample.Value.tile.Fluid.FlowDirection;
+                    highestFluidLevel = Mathf.Max(highestFluidLevel, sample.Value.level);
                     filledCount++;
                 }
             }
@@ -146,9 +142,29 @@ namespace CozyWorldGeneration.Core.DualGrid
             if (visualLayer != null)
                 tile.SetVisualLayer(visualLayer);
 
-
             if (TilesContainer != null)
-                tile.UpdateVisual(TilesContainer, TileHeightOffset, tile.FillLevel, totalFlowDirection);
+                tile.UpdateVisual(TilesContainer, TileHeightOffset, tile.FillLevel, totalFlowDirection,
+                    highestFluidLevel);
+        }
+        
+        private (WorldTile tile, int level)? GetFluidTileAndLevelAtPosition(int x, int y)
+        {
+            if (checkAllLevels)
+            {
+                for (var checkLevel = worldGrid.MaxLevels - 1; checkLevel >= 0; checkLevel--)
+                {
+                    var t = worldGrid.GetTile(x, y, checkLevel);
+                    if (t?.Fluid != null)
+                        return (t, checkLevel);
+                }
+
+                return null;
+            }
+            else
+            {
+                var t = worldGrid.GetTile(x, y, level);
+                return t?.Fluid != null ? (t, level) : null;
+            }
         }
 
         /// <summary>

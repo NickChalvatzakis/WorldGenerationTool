@@ -107,6 +107,17 @@ namespace CozyWorldGeneration.Data.Layers
         {
             tilesets.RemoveAll(w => w.tileset == tileset);
         }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// Assigns a fresh GUID. Called automatically by LayerGuidValidator when a
+        /// duplicate is detected (e.g. after copy-pasting this asset in the Project window).
+        /// </summary>
+        public void RegenerateGuid()
+        {
+            guid = System.Guid.NewGuid().ToString();
+        }
+#endif
     }
 
     [System.Serializable]

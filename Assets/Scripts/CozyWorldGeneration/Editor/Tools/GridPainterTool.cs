@@ -320,6 +320,7 @@ namespace CozyWorldGeneration.Editor
                 EraseTile(pos.x, pos.y);
         }
 
+
         private void PaintFluidAtMousePosition(Event e)
         {
             if (selectedFluidType == null)
@@ -341,15 +342,62 @@ namespace CozyWorldGeneration.Editor
                 return;
             }
 
-            Debug.Log($"[GridPainterTool] Painting fluid at grid pos: {gridPos.Value}");
+            // If we're hovering a rendered terrain tile, place fluid above that hovered level.
+            // Fallback: per-cell highest solid + 1.
+            var hoveredPlacementLevel = GetHoveredFluidPlacementLevel(e);
 
             foreach (var pos in GetBrushPositions(gridPos.Value))
             {
-                var level = GetTerrainLevelAt(pos.x, pos.y) + 1;
-                Debug.Log(
-                    $"[GridPainterTool] Terrain level at ({pos.x}, {pos.y}): {level - 1}, placing fluid at level: {level}");
+                var level = hoveredPlacementLevel ??
+                            Mathf.Clamp(GetTerrainLevelAt(pos.x, pos.y) + 1, 0, gridManager.MaxLevels - 1);
+
                 PaintFluid(pos.x, pos.y, level);
             }
+        }
+
+        private int? GetHoveredFluidPlacementLevel(Event e)
+        {
+            // SceneView pick does not require physics colliders.
+            var picked = HandleUtility.PickGameObject(e.mousePosition, false);
+            if (picked == null)
+                return null;
+
+            // We only want terrain visual tiles, not fluid visuals.
+            if (!IsVisualTileObject(picked.transform))
+                return null;
+
+            if (IsUnderContainer(picked.transform, "Fluid_Visuals"))
+                return null;
+
+            // Visual tile Y corresponds to the world layer level used for rendering.
+            var hoveredSolidLevel = Mathf.RoundToInt(picked.transform.position.y);
+            var placementLevel = hoveredSolidLevel + 1;
+
+            return Mathf.Clamp(placementLevel, 0, gridManager.MaxLevels - 1);
+        }
+
+        private static bool IsVisualTileObject(Transform t)
+        {
+            while (t != null)
+            {
+                if (t.name.StartsWith("VisualTile_"))
+                    return true;
+                t = t.parent;
+            }
+
+            return false;
+        }
+
+        private static bool IsUnderContainer(Transform t, string containerName)
+        {
+            while (t != null)
+            {
+                if (t.name == containerName)
+                    return true;
+                t = t.parent;
+            }
+
+            return false;
         }
 
         private void EraseFluidAtMousePosition(Event e)

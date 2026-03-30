@@ -274,59 +274,30 @@ namespace CozyWorldGeneration.Core.Fluids
         /// </summary>
         private void EqualizeBody(FluidBody fluidBody)
         {
-            var volume = fluidBody.TotalVolume;
             var levels = fluidBody.Tiles
                 .GroupBy(kvp => kvp.Key.z)
-                .OrderBy(g => g.Key)
                 .ToList();
-
-            // Reset all fill amounts
-            foreach (var kvp in fluidBody.Tiles)
-                kvp.Value.FillAmount = 0;
-
-            var remainingVolume = volume;
 
             foreach (var levelGroup in levels)
             {
-                var fluidDataList = levelGroup.Select(kvp => kvp.Value).ToList();
-                var capacity = fluidDataList.Count * 7;
+                var levelTiles = levelGroup.Select(kvp => kvp.Value).ToList();
+                if (levelTiles.Count == 0) continue;
 
-                if (remainingVolume >= capacity)
-                {
-                    foreach (var fluidData in fluidDataList)
-                        fluidData.FillAmount = 7;
-                    remainingVolume -= capacity;
-                }
-                else if (remainingVolume > 0)
-                {
-                    // Keep positions so we can prioritize tiles that can actually spread.
-                    var levelTiles = levelGroup.ToList();
-                    capacity = levelTiles.Count * 7;
-                    var clampedVolume = Mathf.Min(remainingVolume, capacity);
+                var levelVolume = levelTiles.Sum(t => t.FillAmount);
 
-                    var perTile = clampedVolume / levelTiles.Count;
-                    var remainder = clampedVolume % levelTiles.Count;
+                // Reset this level, then redistribute only within same level.
+                foreach (var t in levelTiles)
+                    t.FillAmount = 0;
 
-                    foreach (var kvp in levelTiles)
-                        kvp.Value.FillAmount = perTile;
+                var perTile = levelVolume / levelTiles.Count;
+                var remainder = levelVolume % levelTiles.Count;
 
-                    // Prefer giving +1 to frontier tiles (tiles with at least one spreadable neighbor).
-                    var frontierFirst = levelTiles
-                        .OrderByDescending(kvp =>
-                            WorldGrid.GetFluidSpreadPositions(kvp.Key.x, kvp.Key.y, kvp.Key.z).Count)
-                        .ThenBy(kvp => kvp.Key.z)
-                        .ToList();
+                foreach (var t in levelTiles)
+                    t.FillAmount = perTile;
 
-                    for (var i = 0; i < frontierFirst.Count && remainder > 0; i++)
-                    {
-                        frontierFirst[i].Value.AddFillAmount(1);
-                        remainder--;
-                    }
-
-                    remainingVolume -= clampedVolume;
-                }
-
-                if (remainingVolume == 0) break;
+                // Keep your frontier preference if you already added it; otherwise this is fine:
+                for (var i = 0; i < remainder; i++)
+                    levelTiles[i].AddFillAmount(1);
             }
         }
 

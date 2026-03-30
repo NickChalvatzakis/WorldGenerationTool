@@ -34,57 +34,53 @@ namespace CozyWorldGeneration.Core.DualGrid
         /// <summary>
         /// Updates the visual representation based on configuration index and tileset.
         /// </summary>
-        public void UpdateVisual(Transform parent, float tileHeightOffset, float tileSize = 1.0f,
-            Vector2 flowDirection = default)
+        public void UpdateVisual(
+            Transform parent,
+            float tileHeightOffset,
+            float tileSize = 1.0f,
+            Vector2 flowDirection = default,
+            int renderLevel = -1)
         {
-            // Destroy old visual if it exists
             if (VisualInstance != null)
             {
                 Object.DestroyImmediate(VisualInstance);
                 VisualInstance = null;
             }
 
-            // If no tileset or config is empty, don't render
             if (selectedTileset == null || ConfigurationIndex == 0)
                 return;
 
-            // Get the configuration from the tileset
             var config = selectedTileset.GetConfiguration(ConfigurationIndex);
-
-            // If no mesh, don't render
             if (config.mesh == null)
                 return;
 
-            // Get or create layer-specific container
             var layerContainer = GetOrCreateLayerContainer(parent);
 
-            // Create visual instance
             VisualInstance = new GameObject($"VisualTile_{GridPosition.x}_{GridPosition.y}");
             VisualInstance.transform.SetParent(layerContainer);
 
-            // Calculate Y position: base level + visual offset
-            var layerLevel = visualLayer?.AssignedWorldLayer?.LayerLevel ?? 0;
+            // Use explicit renderLevel when provided (fluid), otherwise fallback to layer mapping (terrain)
+            var fallbackLayerLevel = visualLayer?.AssignedWorldLayer?.LayerLevel ?? 0;
+            var effectiveLevel = renderLevel >= 0 ? renderLevel : fallbackLayerLevel;
             var visualHeight = visualLayer?.VisualHeight ?? 0f;
-            var levelHeight = 1f; // Base height per level (could be configurable)
-            var finalY = layerLevel * levelHeight + visualHeight;
+            var levelHeight = 1f;
+            var finalY = effectiveLevel * levelHeight + visualHeight;
 
-            // Position and rotate
             var worldPos = new Vector3(
                 (GridPosition.x + 1.0f) * tileHeightOffset,
                 finalY,
                 (GridPosition.y + 1.0f) * tileHeightOffset
             );
+
             VisualInstance.transform.position = worldPos;
             VisualInstance.transform.rotation = config.GetRotation();
             VisualInstance.transform.localScale = new Vector3(1.0f, tileSize, 1.0f);
 
-            // Add mesh components
             var meshFilter = VisualInstance.AddComponent<MeshFilter>();
             meshFilter.mesh = config.mesh;
 
             var meshRenderer = VisualInstance.AddComponent<MeshRenderer>();
             meshRenderer.material = config.material;
-
             meshRenderer.sharedMaterial.SetVector("_FlowDirection", flowDirection);
         }
 
