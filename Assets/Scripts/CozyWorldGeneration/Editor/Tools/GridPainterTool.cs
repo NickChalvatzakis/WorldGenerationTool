@@ -343,16 +343,45 @@ namespace CozyWorldGeneration.Editor
             }
 
             // If we're hovering a rendered terrain tile, place fluid above that hovered level.
-            // Fallback: per-cell highest solid + 1.
+            // Fallback: walk up from highest solid through existing fluid to find the first
+            // non-full or empty level, so repeated clicks stack water upward.
             var hoveredPlacementLevel = GetHoveredFluidPlacementLevel(e);
 
             foreach (var pos in GetBrushPositions(gridPos.Value))
             {
                 var level = hoveredPlacementLevel ??
-                            Mathf.Clamp(GetTerrainLevelAt(pos.x, pos.y) + 1, 0, gridManager.MaxLevels - 1);
+                            GetFluidPlacementLevel(pos.x, pos.y);
+
+                if (level < 0 || level >= gridManager.MaxLevels) continue;
 
                 PaintFluid(pos.x, pos.y, level);
             }
+        }
+
+        /// <summary>
+        /// Finds the level at which to place fluid in a column.
+        /// Walks up from the first level above terrain through existing fluid tiles.
+        /// Returns the first non-full or empty level, so repeated clicks stack water upward.
+        /// Returns -1 if the column is completely full.
+        /// </summary>
+        private int GetFluidPlacementLevel(int x, int y)
+        {
+            var terrainLevel = GetTerrainLevelAt(x, y);
+            var level = terrainLevel + 1;
+
+            while (level < gridManager.MaxLevels)
+            {
+                if (!gridManager.WorldGrid.HasFluid(x, y, level))
+                    return level; // empty level — place here
+
+                var tile = gridManager.WorldGrid.GetTile(x, y, level);
+                if (tile?.Fluid != null && !tile.Fluid.IsFull)
+                    return level; // non-full tile — add to it
+
+                level++;
+            }
+
+            return -1; // column is completely full
         }
 
         private int? GetHoveredFluidPlacementLevel(Event e)
@@ -539,3 +568,4 @@ namespace CozyWorldGeneration.Editor
         }
     }
 }
+

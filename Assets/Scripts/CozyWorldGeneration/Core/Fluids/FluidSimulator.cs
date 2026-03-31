@@ -56,10 +56,10 @@ namespace CozyWorldGeneration.Core.Fluids
             ClearWaterfallTiles();   // wipe transient column tiles from last tick
             ApplyGravity();          // pull floating fluid to the first solid surface below
             FindConnectedBodies();
-            EqualizeBodies();
+            EqualizeBodies(); ApplyPressure();         // cross-level pressure equalization
             CheckSettling();
-            SpreadBodies(); // horizontal surface-only spread
-            CreateWaterfalls(); // edge detection + column fall to landing
+            SpreadBodies();          // horizontal surface-only spread
+            CreateWaterfalls();      // edge detection + column fall to landing
             CleanupEmptyTiles();
             UpdateFlowDirections();
 
@@ -272,6 +272,9 @@ namespace CozyWorldGeneration.Core.Fluids
                 if (tile.Fluid.IsWaterfall) continue; // waterfall tiles are intentionally floating
                 if (WorldGrid.HasSolidBelow(position.x, position.y, position.z)) continue; // already supported
 
+                // Fluid stacked on other fluid is stable (supported by pressure)
+                if (position.z > 0 && WorldGrid.HasFluid(position.x, position.y, position.z - 1)) continue;
+
                 var landingLevel = WorldGrid.FindLandingLevel(position.x, position.y, position.z - 1);
                 if (landingLevel < 0)
                 {
@@ -442,6 +445,90 @@ namespace CozyWorldGeneration.Core.Fluids
         }
 
         /// <summary>
+        /// Simulates vertical pressure within each fluid body.
+        /// For bodies that span multiple columns at different heights, gradually moves
+        /// fluid from the tallest column to the shortest growable column.
+        /// This creates a communicating-vessels effect: connected columns equalize height over time.
+        /// </summary>
+        private void ApplyPressure()
+        {
+            foreach (var body in fluidBodies)
+            {
+                if (body.IsSettled) continue;
+
+                // Group tiles by column (x,y) and find each column's highest fluid level
+                var columnHeights = new Dictionary<Vector2Int, int>();
+                foreach (var kvp in body.Tiles)
+                {
+                    var col = new Vector2Int(kvp.Key.x, kvp.Key.y);
+                    if (!columnHeights.TryGetValue(col, out var current) || kvp.Key.z > current)
+                        columnHeights[col] = kvp.Key.z;
+                }
+
+                if (columnHeights.Count <= 1) continue;
+
+                // Find the tallest column
+                Vector2Int tallestCol = default;
+                var maxHeight = int.MinValue;
+                foreach (var kvp in columnHeights)
+                {
+                    if (kvp.Value > maxHeight)
+                    {
+                        maxHeight = kvp.Value;
+                        tallestCol = kvp.Key;
+                    }
+                }
+
+                // Find the shortest column that can grow upward (no solid blocking above)
+                Vector2Int shortestCol = default;
+                var minHeight = int.MaxValue;
+                var foundShortest = false;
+
+                foreach (var kvp in columnHeights)
+                {
+                    if (kvp.Key == tallestCol) continue;
+
+                    var nextLevel = kvp.Value + 1;
+                    if (nextLevel >= WorldGrid.MaxLevels) continue;
+                    if (WorldGrid.HasSolidTile(kvp.Key.x, kvp.Key.y, nextLevel)) continue;
+
+                    if (kvp.Value < minHeight)
+                    {
+                        minHeight = kvp.Value;
+                        shortestCol = kvp.Key;
+                        foundShortest = true;
+                    }
+                }
+
+                if (!foundShortest) continue;
+                if (maxHeight <= minHeight) continue; // already equalized
+
+                // Drain from the top tile of the tallest column
+                var tallTopPos = new Vector3Int(tallestCol.x, tallestCol.y, maxHeight);
+                var tallTopTile = WorldGrid.GetTile(tallTopPos);
+                if (tallTopTile?.Fluid == null) continue;
+
+                var transferAmount = Mathf.Min(tallTopTile.Fluid.FillAmount, body.Type.SpreadRate);
+                if (transferAmount <= 0) continue;
+
+                tallTopTile.Fluid.RemoveFillAmount(transferAmount);
+
+                // Push into the shortest column: fill existing top tile, or create one above
+                var shortTopTile = WorldGrid.GetTile(shortestCol.x, shortestCol.y, minHeight);
+                if (shortTopTile?.Fluid != null && !shortTopTile.Fluid.IsFull)
+                {
+                    WorldGrid.PlaceFluid(shortestCol.x, shortestCol.y, minHeight, body.Type, transferAmount);
+                }
+                else
+                {
+                    var nextLevel = minHeight + 1;
+                    if (nextLevel < WorldGrid.MaxLevels)
+                        WorldGrid.PlaceFluid(shortestCol.x, shortestCol.y, nextLevel, body.Type, transferAmount);
+                }
+            }
+        }
+
+        /// <summary>
         /// Groups all fluid tiles into FluidBody instances
         /// </summary>
         private void FindConnectedBodies()
@@ -579,3 +666,4 @@ namespace CozyWorldGeneration.Core.Fluids
 #endif
     }
 }
+
