@@ -5,8 +5,7 @@ using UnityEngine;
 namespace CozyWorldGeneration.Core
 {
     /// <summary>
-    /// Generic base class for 3D grid types (x, y, level).
-    /// Uses Dictionary for efficient sparse storage.
+    /// Generic sparse 3D grid base class (x, y, level). Uses Dictionary for efficient storage.
     /// </summary>
     public abstract class Grid3D<T> where T : class
     {
@@ -69,9 +68,6 @@ namespace CozyWorldGeneration.Core
             return IsValidPosition(x, y) && level >= 0 && level < MaxLevels;
         }
 
-        /// <summary>
-        /// Vector3Int (x,y,level)
-        /// </summary>
         public bool IsValidPosition(Vector3Int position)
         {
             return IsValidPosition(position.x, position.y) && position.z >= 0 && position.z < MaxLevels;
@@ -92,22 +88,17 @@ namespace CozyWorldGeneration.Core
             return HasTile(position.x, position.y, level);
         }
 
-        /// <summary>
-        /// Gets the four cardinal neighbours (up, down, left, right) of a position.
-        /// as well as the above and below tile.
-        /// Only returns neighbours that exist and are within grid bounds.
-        /// </summary>
         public List<T> GetCardinalNeighbours(int x, int y, int level)
         {
             var neighbours = new List<T>(6);
             Vector3Int[] directions =
             {
-                new(0, 1, 0), // Forward
-                new(1, 0, 0), // Right
-                new(0, -1, 0), // Back
-                new(-1, 0, 0), // Left
-                new(0, 0, 1), // Up
-                new(0, 0, -1) // Down
+                new(0, 1, 0),
+                new(1, 0, 0),
+                new(0, -1, 0),
+                new(-1, 0, 0),
+                new(0, 0, 1),
+                new(0, 0, -1)
             };
 
             neighbours.AddRange(from dir in directions
@@ -126,12 +117,12 @@ namespace CozyWorldGeneration.Core
         {
             Vector3Int[] directions =
             {
-                new(0, 1, 0), // Forward
-                new(1, 0, 0), // Right
-                new(0, -1, 0), // Back
-                new(-1, 0, 0), // Left
-                new(0, 0, -1), // Down
-                new(0, 0, 1) // Up
+                new(0, 1, 0),
+                new(1, 0, 0),
+                new(0, -1, 0),
+                new(-1, 0, 0),
+                new(0, 0, -1),
+                new(0, 0, 1)
             };
 
             return (from dir in directions
@@ -146,9 +137,6 @@ namespace CozyWorldGeneration.Core
             return GetAllCardinalNeighbours(position.x, position.y, position.z);
         }
 
-        /// <summary>
-        /// Gets all tiles at a specific (x, y) position across all levels.
-        /// </summary>
         public List<T> GetTilesAtPosition(int x, int y)
         {
             var result = new List<T>();
@@ -158,9 +146,6 @@ namespace CozyWorldGeneration.Core
             return result;
         }
 
-        /// <summary>
-        /// Gets all tiles at a specific level.
-        /// </summary>
         public IEnumerable<T> GetTilesAtLevel(int level)
         {
             foreach (var kvp in tiles)

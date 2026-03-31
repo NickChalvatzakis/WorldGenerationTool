@@ -11,6 +11,9 @@ using UnityEditor;
 
 namespace CozyWorldGeneration.Core.Fluids
 {
+    /// <summary>
+    /// Runs fluid simulation steps and emits events consumed by fluid visuals.
+    /// </summary>
     [ExecuteAlways]
     public class FluidSimulator : MonoBehaviour
     {
@@ -47,19 +50,23 @@ namespace CozyWorldGeneration.Core.Fluids
             gridManager = manager;
         }
 
+        /// <summary>
+        /// Executes one simulation tick: refill, gravity, body solve, spread, waterfalls, then flow directions.
+        /// </summary>
         public void SimulateTick()
         {
             if (WorldGrid == null) return;
             if (!WorldGrid.GetAllFluidTiles().Any()) return;
 
             RefillSources();
-            ClearWaterfallTiles();   // wipe transient column tiles from last tick
-            ApplyGravity();          // pull floating fluid to the first solid surface below
+            ClearWaterfallTiles();
+            ApplyGravity();
             FindConnectedBodies();
-            EqualizeBodies(); ApplyPressure();         // cross-level pressure equalization
+            EqualizeBodies();
+            ApplyPressure();
             CheckSettling();
-            SpreadBodies();          // horizontal surface-only spread
-            CreateWaterfalls();      // edge detection + column fall to landing
+            SpreadBodies();
+            CreateWaterfalls();
             CleanupEmptyTiles();
             UpdateFlowDirections();
 
@@ -74,15 +81,10 @@ namespace CozyWorldGeneration.Core.Fluids
                 ToolEvents.TriggerFluidBodyUnsettled(body);
         }
 
-
-        /// <summary>
-        /// Sets the non-settled tiles that belong to a body with source to have a flow direction from that source
-        /// </summary>
         private void UpdateFlowDirections()
         {
             foreach (var body in fluidBodies)
             {
-                // Settled bodies have no flow
                 if (body.IsSettled)
                 {
                     foreach (var kvp in body.Tiles)
@@ -95,7 +97,6 @@ namespace CozyWorldGeneration.Core.Fluids
                     continue;
                 }
 
-                // No source = no persistent flow
                 if (!body.HasSource)
                 {
                     foreach (var kvp in body.Tiles)
@@ -108,15 +109,10 @@ namespace CozyWorldGeneration.Core.Fluids
                     continue;
                 }
 
-                // Calculate flow from sources
                 UpdateFlowForBody(body);
             }
         }
 
-        /// <summary>
-        /// Finds the nearest source and sets the FlowDirection of the tiles in a body
-        /// to the direction from the source.
-        /// </summary>
         private void UpdateFlowForBody(FluidBody body)
         {
             var sources = body.Tiles
@@ -140,7 +136,6 @@ namespace CozyWorldGeneration.Core.Fluids
                     continue;
                 }
 
-                // Find nearest source
                 var nearestSource = sources[0];
                 var nearestDist = float.MaxValue;
 
@@ -154,7 +149,6 @@ namespace CozyWorldGeneration.Core.Fluids
                     }
                 }
 
-                // Flow direction = away from source (horizontal only)
                 var dir = new Vector2(
                     position.x - nearestSource.x,
                     position.y - nearestSource.y
@@ -173,7 +167,6 @@ namespace CozyWorldGeneration.Core.Fluids
                 var tile = WorldGrid.GetTile(position);
                 if (tile?.Fluid == null) continue;
 
-                // Keep sources even if empty
                 if (tile.Fluid.IsSource) continue;
 
                 if (tile.Fluid.IsEmpty)
@@ -184,12 +177,6 @@ namespace CozyWorldGeneration.Core.Fluids
                 WorldGrid.RemoveFluid(pos.x, pos.y, pos.z);
         }
 
-        /// <summary>
-        /// Removes all fluid tiles marked as IsWaterfall.
-        /// Waterfall column tiles are transient visual markers — they are rebuilt fresh
-        /// each tick by CreateWaterfalls and must not persist across ticks, otherwise they
-        /// pollute EqualizeBodies (eating volume) and block CreateWaterfalls edge detection.
-        /// </summary>
         private void ClearWaterfallTiles()
         {
             var tilesToRemove = new List<Vector3Int>();
@@ -217,8 +204,7 @@ namespace CozyWorldGeneration.Core.Fluids
                 {
                     var position = kvp.Key;
                     var fluidData = kvp.Value;
-
-                    if (fluidData.IsWaterfall) continue; // waterfall tiles don't spread horizontally
+                    if (fluidData.IsWaterfall) continue;
 
                     var totalSpread = 0;
                     var startingAmount = fluidData.FillAmount;
@@ -256,9 +242,7 @@ namespace CozyWorldGeneration.Core.Fluids
         }
 
         /// <summary>
-        /// Moves any fluid tile that has no solid support below it (and is not a waterfall tile)
-        /// to the first solid landing surface in its column.
-        /// Fluid with no landing at all (empty column) is removed.
+        /// Moves unsupported fluid down to the first valid landing level in the same column.
         /// </summary>
         private void ApplyGravity()
         {
@@ -269,16 +253,15 @@ namespace CozyWorldGeneration.Core.Fluids
             {
                 var tile = WorldGrid.GetTile(position);
                 if (tile?.Fluid == null) continue;
-                if (tile.Fluid.IsWaterfall) continue; // waterfall tiles are intentionally floating
-                if (WorldGrid.HasSolidBelow(position.x, position.y, position.z)) continue; // already supported
+                if (tile.Fluid.IsWaterfall) continue;
+                if (WorldGrid.HasSolidBelow(position.x, position.y, position.z)) continue;
 
-                // Fluid stacked on other fluid is stable (supported by pressure)
                 if (position.z > 0 && WorldGrid.HasFluid(position.x, position.y, position.z - 1)) continue;
 
                 var landingLevel = WorldGrid.FindLandingLevel(position.x, position.y, position.z - 1);
                 if (landingLevel < 0)
                 {
-                    toRemove.Add(position); // no solid anywhere below — remove
+                    toRemove.Add(position);
                     continue;
                 }
 
@@ -302,17 +285,7 @@ namespace CozyWorldGeneration.Core.Fluids
         }
 
         /// <summary>
-        /// Detects surface fluid tiles (HasSolidBelow == true) that border a drop edge — a
-        /// cardinal neighbour at the same level with no solid below it.
-        /// For each such edge, pours fluid straight down to the first solid landing surface.
-        ///
-        /// Column layout:
-        ///   - Intermediate air tiles (edge level down to landing+1): marked IsWaterfall=true,
-        ///     carry the same fill as the edge tile for visual continuity. They are purely visual
-        ///     and get cleared at the start of every tick by ClearWaterfallTiles.
-        ///   - Landing tile: IsWaterfall=false, receives actual volume transfer so it spreads normally.
-        ///
-        /// Volume is conserved: only the landing placement drains the source edge tile.
+        /// Creates transient vertical waterfall columns and transfers volume to landing tiles.
         /// </summary>
         private void CreateWaterfalls()
         {
@@ -353,7 +326,6 @@ namespace CozyWorldGeneration.Core.Fluids
                     var spreadAmount = Mathf.Min(fill - 1, tile.Fluid.Type.SpreadRate);
                     if (spreadAmount <= 0) continue;
 
-                    // --- Intermediate column tiles (visual-only, IsWaterfall=true) ---
                     for (var columnLevel = level; columnLevel > landingLevel; columnLevel--)
                     {
                         WorldGrid.PlaceFluid(nx, ny, columnLevel, tile.Fluid.Type, fill);
@@ -362,7 +334,6 @@ namespace CozyWorldGeneration.Core.Fluids
                             columnTile.Fluid.IsWaterfall = true;
                     }
 
-                    // --- Landing tile (real volume transfer, IsWaterfall=false) ---
                     WorldGrid.PlaceFluid(nx, ny, landingLevel, tile.Fluid.Type, spreadAmount);
                     var landing = WorldGrid.GetTile(nx, ny, landingLevel);
                     if (landing?.Fluid != null)
@@ -373,7 +344,6 @@ namespace CozyWorldGeneration.Core.Fluids
                 }
             }
 
-            // Drain source edge tiles (keep at least 1 unit)
             foreach (var kvp in reductions)
             {
                 var sourceTile = WorldGrid.GetTile(kvp.Key);
@@ -399,22 +369,12 @@ namespace CozyWorldGeneration.Core.Fluids
             }
         }
 
-        /// <summary>
-        /// Redistribute fluid within each body
-        /// </summary>
         private void EqualizeBodies()
         {
             foreach (var fluidBody in fluidBodies)
                 EqualizeBody(fluidBody);
         }
 
-        /// <summary>
-        /// Equalizes the FillAmount of each level in a body.
-        /// Calculates capacity by the cells in each level.
-        /// Assigns 7 if the remainingVolume is higher than the capacity.
-        /// Assigns remainingVolume divided by how many tiles are at that level,
-        /// if volume is lower and keeps the remainder gets added to the first non-full tile.
-        /// </summary>
         private void EqualizeBody(FluidBody fluidBody)
         {
             var levels = fluidBody.Tiles
@@ -428,7 +388,6 @@ namespace CozyWorldGeneration.Core.Fluids
 
                 var levelVolume = levelTiles.Sum(t => t.FillAmount);
 
-                // Reset this level, then redistribute only within same level.
                 foreach (var t in levelTiles)
                     t.FillAmount = 0;
 
@@ -438,17 +397,13 @@ namespace CozyWorldGeneration.Core.Fluids
                 foreach (var t in levelTiles)
                     t.FillAmount = perTile;
 
-                // Keep your frontier preference if you already added it; otherwise this is fine:
                 for (var i = 0; i < remainder; i++)
                     levelTiles[i].AddFillAmount(1);
             }
         }
 
         /// <summary>
-        /// Simulates vertical pressure within each fluid body.
-        /// For bodies that span multiple columns at different heights, gradually moves
-        /// fluid from the tallest column to the shortest growable column.
-        /// This creates a communicating-vessels effect: connected columns equalize height over time.
+        /// Pushes volume from taller columns into shorter connected columns.
         /// </summary>
         private void ApplyPressure()
         {
@@ -456,7 +411,6 @@ namespace CozyWorldGeneration.Core.Fluids
             {
                 if (body.IsSettled) continue;
 
-                // Group tiles by column (x,y) and find each column's highest fluid level
                 var columnHeights = new Dictionary<Vector2Int, int>();
                 foreach (var kvp in body.Tiles)
                 {
@@ -467,7 +421,6 @@ namespace CozyWorldGeneration.Core.Fluids
 
                 if (columnHeights.Count <= 1) continue;
 
-                // Find the tallest column
                 Vector2Int tallestCol = default;
                 var maxHeight = int.MinValue;
                 foreach (var kvp in columnHeights)
@@ -479,7 +432,6 @@ namespace CozyWorldGeneration.Core.Fluids
                     }
                 }
 
-                // Find the shortest column that can grow upward (no solid blocking above)
                 Vector2Int shortestCol = default;
                 var minHeight = int.MaxValue;
                 var foundShortest = false;
@@ -501,9 +453,8 @@ namespace CozyWorldGeneration.Core.Fluids
                 }
 
                 if (!foundShortest) continue;
-                if (maxHeight <= minHeight) continue; // already equalized
+                if (maxHeight <= minHeight) continue;
 
-                // Drain from the top tile of the tallest column
                 var tallTopPos = new Vector3Int(tallestCol.x, tallestCol.y, maxHeight);
                 var tallTopTile = WorldGrid.GetTile(tallTopPos);
                 if (tallTopTile?.Fluid == null) continue;
@@ -513,7 +464,6 @@ namespace CozyWorldGeneration.Core.Fluids
 
                 tallTopTile.Fluid.RemoveFillAmount(transferAmount);
 
-                // Push into the shortest column: fill existing top tile, or create one above
                 var shortTopTile = WorldGrid.GetTile(shortestCol.x, shortestCol.y, minHeight);
                 if (shortTopTile?.Fluid != null && !shortTopTile.Fluid.IsFull)
                 {
@@ -528,20 +478,15 @@ namespace CozyWorldGeneration.Core.Fluids
             }
         }
 
-        /// <summary>
-        /// Groups all fluid tiles into FluidBody instances
-        /// </summary>
         private void FindConnectedBodies()
         {
             fluidBodies.Clear();
             nextBodyId = 0;
 
-            // Reset all body IDs
             foreach (var tile in WorldGrid.GetAllFluidTiles())
                 if (tile.Fluid != null)
                     tile.Fluid.BodyId = -1;
 
-            // Find connected bodies
             foreach (var position in WorldGrid.GetAllPositions())
             {
                 var tile = WorldGrid.GetTile(position);
@@ -553,9 +498,6 @@ namespace CozyWorldGeneration.Core.Fluids
             }
         }
 
-        /// <summary>
-        /// BFS to find all nearby fluid tiles and add them to a FluidBody (group)
-        /// </summary>
         private FluidBody FloodFillBody(Vector3Int position, FluidData startFluid)
         {
             var body = new FluidBody(nextBodyId++, startFluid.Type);
@@ -572,7 +514,7 @@ namespace CozyWorldGeneration.Core.Fluids
 
                 if (currentFluid == null) continue;
                 if (currentFluid.BodyId != -1) continue;
-                if (currentFluid.Type != body.Type) continue; // Can't connect different fluids
+                if (currentFluid.Type != body.Type) continue;
 
                 body.AddTile(currentPos, currentFluid);
 
@@ -585,7 +527,6 @@ namespace CozyWorldGeneration.Core.Fluids
                         queue.Enqueue(neighbourPos);
             }
 
-            // If there is at least one unsettled tile, unsettle the whole body
             if (hasSettled && hasUnsettled)
                 UnsettleBody(body);
 
@@ -657,9 +598,7 @@ namespace CozyWorldGeneration.Core.Fluids
 
         private void EditorUpdate()
         {
-            // Rebuild bodies in editor for display purposes (even without full simulation)
             if (!Application.isPlaying && WorldGrid != null && WorldGrid.GetAllFluidTiles().Any())
-                // Only rebuild bodies, don't run full simulation unless enabled
                 if (!simulateInEditor)
                     FindConnectedBodies();
         }

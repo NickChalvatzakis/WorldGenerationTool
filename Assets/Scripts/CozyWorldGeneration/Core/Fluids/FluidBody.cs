@@ -20,14 +20,8 @@ namespace CozyWorldGeneration.Core.Fluids
         public Dictionary<Vector3Int, FluidData> Tiles { get; set; }
 
 
-        /// <summary>
-        /// Sum of all FillAmount across tiles in the body
-        /// </summary>
         public int TotalVolume => Tiles.Sum(t => t.Value.FillAmount);
 
-        /// <summary>
-        /// TotalVolume divided by Tile Count
-        /// </summary>
         public float AverageFillAmount => Tiles.Count > 0 ? TotalVolume / (float)Tiles.Count : 0;
 
         public int TotalCount => Tiles.Count;

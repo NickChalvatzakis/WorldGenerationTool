@@ -8,108 +8,43 @@ using UnityEngine;
 namespace CozyWorldGeneration.Core.Events
 {
     /// <summary>
-    /// Centralized event system for Cozy World Generation tool.
-    /// All events related to layers, grids, and painting are managed here.
+    /// Static event hub for the tool. Subscribe here; GridManager and other listeners react to changes.
     /// </summary>
     public static class ToolEvents
     {
         #region Layer Events
 
-        /// <summary>
-        /// Fired when a layer is added to a collection.
-        /// </summary>
         public static event Action<WorldLayer> OnLayerAdded;
-
-        /// <summary>
-        /// Fired when a layer is removed from a collection.
-        /// </summary>
         public static event Action<WorldLayer> OnLayerRemoved;
-
-        /// <summary>
-        /// Fired when a layer is cleared (all painted data removed).
-        /// </summary>
         public static event Action<WorldLayer> OnLayerCleared;
 
         #endregion
 
         #region Grid Events
 
-        /// <summary>
-        /// Fired when a tile is placed on the WorldGrid.
-        /// Parameters: x, y, tileType, sourceLayer
-        /// </summary>
         public static event Action<int, int, TileType, WorldLayer> OnTilePlaced;
-
-        /// <summary>
-        /// Fired when a tile is removed from the WorldGrid.
-        /// Parameters: x, y
-        /// </summary>
         public static event Action<int, int> OnTileRemoved;
-
         public static event Action<int, int> OnTileChanged;
-
-        /// <summary>
-        /// Fired when the grid is cleared.
-        /// </summary>
         public static event Action OnGridCleared;
-
-        /// <summary>
-        /// Fired when the grid is initialized or reinitialized.
-        /// Parameters: width, height
-        /// </summary>
         public static event Action<int, int> OnGridInitialized;
 
         #endregion
 
         #region Fluid Events
 
-        /// <summary>
-        /// Fired when fluid is placed. Passes the WorldTile that has the fluid.
-        /// </summary>
         public static event Action<WorldTile> OnFluidPlaced;
-        
-        /// <summary>
-        /// Fired when fluid is removed from a position.
-        /// </summary>
         public static event Action<Vector3Int> OnFluidRemoved;
-        
-        /// <summary>
-        /// Fired when a fluid body settles (stops flowing).
-        /// </summary>
         public static event Action<FluidBody> OnFluidBodySettled;
-        
-        /// <summary>
-        /// Fired when a settled fluid body becomes unsettled.
-        /// </summary>
         public static event Action<FluidBody> OnFluidBodyUnsettled;
-
-        /// <summary>
-        /// Fired when a fluid body spreads to new tiles.
-        /// </summary>
         public static event Action<FluidBody> OnFluidBodySpread;
-
-        /// <summary>
-        /// Fired each time the fluid simulation completes a tick.
-        /// </summary>
         public static event Action OnFluidSimulationTick;
 
         #endregion
 
         #region Painting Events
 
-        /// <summary>
-        /// Fired when painting starts.
-        /// </summary>
         public static event Action<WorldLayer> OnPaintingStarted;
-
-        /// <summary>
-        /// Fired when painting stops.
-        /// </summary>
         public static event Action OnPaintingStopped;
-
-        /// <summary>
-        /// Fired when the active painting layer changes.
-        /// </summary>
         public static event Action<WorldLayer> OnActiveLayerChanged;
 
         #endregion

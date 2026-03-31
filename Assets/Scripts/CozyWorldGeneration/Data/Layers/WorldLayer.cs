@@ -4,10 +4,6 @@ using UnityEngine;
 
 namespace CozyWorldGeneration.Data.Layers
 {
-    /// <summary>
-    /// ScriptableObject that represents a single layer in the grid system.
-    /// Can be painted on to define where tiles exist.
-    /// </summary>
     [CreateAssetMenu(fileName = "NewWorldLayer", menuName = "Cozy World Generation/World Layer")]
     public class WorldLayer : ScriptableObject
     {
@@ -47,7 +43,6 @@ namespace CozyWorldGeneration.Data.Layers
         {
             get
             {
-                // Lazy initialization - rebuild from serialized data if needed
                 if (previewTexture == null && textureData != null && textureData.Length > 0)
                     RebuildTextureFromData();
                 return previewTexture;
@@ -74,11 +69,9 @@ namespace CozyWorldGeneration.Data.Layers
 
         private void OnEnable()
         {
-            // Ensure GUID exists
             if (string.IsNullOrEmpty(guid))
                 guid = Guid.NewGuid().ToString();
 
-            // Rebuild texture from serialized data if available
             if (textureData != null && textureData.Length > 0)
                 RebuildTextureFromData();
         }
@@ -105,10 +98,8 @@ namespace CozyWorldGeneration.Data.Layers
             previewTexture = null;
 
             if (textureData != null && textureData.Length > 0)
-                // Has serialized data - rebuild from it
                 RebuildTextureFromData();
             else if (fallbackWidth > 0 && fallbackHeight > 0)
-                // Use fallback dimensions from GridManager
                 InitializePreviewTexture(fallbackWidth, fallbackHeight);
             else
                 Debug.LogWarning($"[WorldLayer] Cannot rebuild texture for '{layerName}' - no dimensions available");

@@ -23,10 +23,8 @@ namespace CozyWorldGeneration.Editor
         private bool isPainting = false;
         private bool isErasing = false;
 
-        // Undo system - groups multiple paint operations into one undo
         private int undoGroup;
         private HashSet<WorldLayer> modifiedLayers = new();
-
         private HashSet<WorldLayer> modifiedLayersInCurrentStroke = new();
 
         private int brushSize = 1;
@@ -47,26 +45,21 @@ namespace CozyWorldGeneration.Editor
         {
             base.OnWillBeDeactivated();
             Undo.undoRedoPerformed -= OnUndoRedoPerformed;
-
-            // Serialize any unsaved texture data when tool is deactivated
             SerializeAllModifiedLayers();
         }
 
         /// <summary>
-        /// Called when user presses Ctrl+Z or Ctrl+Shift+Z
-        /// Rebuilds the grid from layer texture data
+        /// Rebuilds layer textures and the WorldGrid from serialized data after undo/redo.
         /// </summary>
         private void OnUndoRedoPerformed()
         {
             if (gridManager == null)
                 return;
 
-            // Rebuild all layer textures from serialized data
             if (gridManager.WorldLayerCollection?.Layers != null)
                 foreach (var layer in gridManager.WorldLayerCollection.Layers)
                     layer?.ForceRebuildTexture(gridManager.Width, gridManager.Height);
 
-            // Rebuild the WorldGrid from the updated layer textures
             if (gridManager.WorldGrid != null)
                 RebuildWorldGridFromLayers();
 
@@ -194,7 +187,6 @@ namespace CozyWorldGeneration.Editor
 
             if (e.alt) return;
 
-            // Ctrl+Scroll = change brush size
             if (e.type == EventType.ScrollWheel && e.control)
             {
                 brushSize = Mathf.Max(1, brushSize - (int)Mathf.Sign(e.delta.y));
@@ -206,7 +198,7 @@ namespace CozyWorldGeneration.Editor
             switch (e.type)
             {
                 case EventType.MouseDown:
-                    if (e.button == 0) // Left click = Paint
+                    if (e.button == 0)
                     {
                         isPainting = true;
                         BeginPaintStroke("Paint Tiles");
@@ -214,7 +206,7 @@ namespace CozyWorldGeneration.Editor
                         e.Use();
                         GUIUtility.hotControl = controlID;
                     }
-                    else if (e.button == 1) // Right click = Erase
+                    else if (e.button == 1)
                     {
                         isErasing = true;
                         BeginPaintStroke("Erase Tiles");
@@ -222,7 +214,6 @@ namespace CozyWorldGeneration.Editor
                         e.Use();
                         GUIUtility.hotControl = controlID;
                     }
-
                     break;
 
                 case EventType.MouseDrag:
@@ -262,7 +253,7 @@ namespace CozyWorldGeneration.Editor
         }
 
         /// <summary>
-        /// Gets all grid positions within the brush radius (spherical/circular)
+        /// Returns all grid positions within the circular brush radius.
         /// </summary>
         private IEnumerable<Vector2Int> GetBrushPositions(Vector2Int center)
         {
@@ -271,7 +262,6 @@ namespace CozyWorldGeneration.Editor
 
             for (var x = -radius; x <= radius; x++)
             for (var y = -radius; y <= radius; y++)
-                // Circular brush shape
                 if (x * x + y * y <= radiusSq)
                 {
                     var pos = new Vector2Int(center.x + x, center.y + y);
@@ -342,9 +332,6 @@ namespace CozyWorldGeneration.Editor
                 return;
             }
 
-            // If we're hovering a rendered terrain tile, place fluid above that hovered level.
-            // Fallback: walk up from highest solid through existing fluid to find the first
-            // non-full or empty level, so repeated clicks stack water upward.
             var hoveredPlacementLevel = GetHoveredFluidPlacementLevel(e);
 
             foreach (var pos in GetBrushPositions(gridPos.Value))
@@ -372,33 +359,30 @@ namespace CozyWorldGeneration.Editor
             while (level < gridManager.MaxLevels)
             {
                 if (!gridManager.WorldGrid.HasFluid(x, y, level))
-                    return level; // empty level — place here
+                    return level;
 
                 var tile = gridManager.WorldGrid.GetTile(x, y, level);
                 if (tile?.Fluid != null && !tile.Fluid.IsFull)
-                    return level; // non-full tile — add to it
+                    return level;
 
                 level++;
             }
 
-            return -1; // column is completely full
+            return -1;
         }
 
         private int? GetHoveredFluidPlacementLevel(Event e)
         {
-            // SceneView pick does not require physics colliders.
             var picked = HandleUtility.PickGameObject(e.mousePosition, false);
             if (picked == null)
                 return null;
 
-            // We only want terrain visual tiles, not fluid visuals.
             if (!IsVisualTileObject(picked.transform))
                 return null;
 
             if (IsUnderContainer(picked.transform, "Fluid_Visuals"))
                 return null;
 
-            // Visual tile Y corresponds to the world layer level used for rendering.
             var hoveredSolidLevel = Mathf.RoundToInt(picked.transform.position.y);
             var placementLevel = hoveredSolidLevel + 1;
 
@@ -438,7 +422,6 @@ namespace CozyWorldGeneration.Editor
             if (!gridPos.HasValue) return;
 
             foreach (var pos in GetBrushPositions(gridPos.Value))
-                // Try to erase fluid at all levels
                 for (var level = 0; level < 10; level++)
                     EraseFluid(pos.x, pos.y, level);
         }
@@ -447,7 +430,6 @@ namespace CozyWorldGeneration.Editor
         {
             var highestLevel = -1;
 
-            // Check for the highest solid tile at this x,y position
             for (var level = 0; level < gridManager.MaxLevels; level++)
             {
                 var tile = gridManager.GetWorldTile(x, y, level);
@@ -519,11 +501,9 @@ namespace CozyWorldGeneration.Editor
             if (gridManager == null || gridManager.WorldGrid == null)
                 return;
 
-            // Highlight hovered cell(s) based on brush size
             var hoveredPos = GetGridPositionFromMouse(Event.current.mousePosition);
             if (hoveredPos.HasValue)
             {
-                // Color preview based on current action
                 if (paintMode == PaintMode.Terrain)
                     Handles.color = isPainting ? Color.green : isErasing ? Color.red : Color.yellow;
                 else
@@ -535,7 +515,6 @@ namespace CozyWorldGeneration.Editor
                     Handles.DrawWireCube(worldPos, Vector3.one * gridManager.TileSize * 0.95f);
                 }
 
-                // Show layer name when hovering (not actively painting/erasing)
                 if (!isPainting && !isErasing)
                 {
                     var centerWorldPos = gridManager.GridToWorldPosition(hoveredPos.Value.x, hoveredPos.Value.y);

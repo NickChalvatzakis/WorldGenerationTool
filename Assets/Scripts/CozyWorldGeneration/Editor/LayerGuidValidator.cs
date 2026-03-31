@@ -47,7 +47,6 @@ namespace CozyWorldGeneration.Editor
                 AssetDatabase.SaveAssets();
         }
 
-        // ─── Per-type helpers ────────────────────────────────────────────────
 
         private static bool EnsureUniqueGuid(WorldLayer layer, string layerPath)
         {
@@ -98,17 +97,13 @@ namespace CozyWorldGeneration.Editor
             return paths;
         }
 
-        // ─── Manual repair menu item ─────────────────────────────────────────
-
         [MenuItem("Tools/Cozy World Generation/Fix Duplicate Layer GUIDs", false, 50)]
         public static void FixAllDuplicateGuids()
         {
             var fixedCount = 0;
 
-            // ── WorldLayers ──────────────────────────────────────────────────
             var wlPaths = FindAllAssetPaths("t:WorldLayer");
-            // Build a seen-set; first asset encountered for each GUID wins.
-            var seenWorldGuids = new Dictionary<string, string>(); // guid -> first path
+            var seenWorldGuids = new Dictionary<string, string>();
 
             foreach (var path in wlPaths)
             {
@@ -122,7 +117,6 @@ namespace CozyWorldGeneration.Editor
                     layer.RegenerateGuid();
                     EditorUtility.SetDirty(layer);
                     fixedCount++;
-                    // Register the new (now unique) GUID
                     seenWorldGuids[layer.GUID] = path;
                 }
                 else
@@ -131,7 +125,6 @@ namespace CozyWorldGeneration.Editor
                 }
             }
 
-            // ── VisualLayers ─────────────────────────────────────────────────
             var vlPaths = FindAllAssetPaths("t:VisualLayer");
             var seenVisualGuids = new Dictionary<string, string>();
 

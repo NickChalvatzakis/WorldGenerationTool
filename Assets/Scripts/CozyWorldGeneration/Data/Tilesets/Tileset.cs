@@ -30,14 +30,13 @@ namespace CozyWorldGeneration.Data.Tilesets
         }
 
         /// <summary>
-        /// Generates all 16 configurations based on the base mesh configs provided.
+        /// Generates all 16 dual-grid configurations from the supplied base meshes.
         /// </summary>
         [ContextMenu("Generate Configurations")]
         public void GenerateConfigurations()
         {
             configurations = new TileConfiguration[16];
 
-            // Config 0: Always empty
             configurations[0] = new TileConfiguration
             {
                 tileType = TileType.Empty,
@@ -46,20 +45,12 @@ namespace CozyWorldGeneration.Data.Tilesets
                 material = material
             };
 
-            // Generate Corner configs (1, 2, 4, 8)
             if (cornerConfig.mesh != null) GenerateRotatedConfigs(cornerConfig, GetCornerConfigs());
-
-            // Generate Edge configs (3, 6, 9, 12)
             if (edgeConfig.mesh != null) GenerateRotatedConfigs(edgeConfig, GetEdgeConfigs());
-
-            // Generate Diagonal configs (5, 10)
             if (diagonalConfig.mesh != null) GenerateRotatedConfigs(diagonalConfig, GetDiagonalConfigs());
-
-            // Generate Interior Corner configs (7, 11, 13, 14)
             if (interiorCornerConfig.mesh != null)
                 GenerateRotatedConfigs(interiorCornerConfig, GetInteriorCornerConfigs());
 
-            // Generate Fill config (15)
             if (fillConfig.mesh != null)
                 configurations[15] = new TileConfiguration
                 {
@@ -72,12 +63,8 @@ namespace CozyWorldGeneration.Data.Tilesets
             Debug.Log($"Generated {configurations.Length} configurations for tileset: {name}");
         }
 
-        /// <summary>
-        /// Generates rotated versions of a base mesh config for multiple configuration indices.
-        /// </summary>
         private void GenerateRotatedConfigs(BaseMeshConfiguration baseConfig, int[] configIndices)
         {
-            // Find which config index the base rotation corresponds to
             var baseIndex = FindBaseConfigIndex(baseConfig.tileType, baseConfig.baseRotation);
 
             if (baseIndex == -1)
@@ -87,10 +74,8 @@ namespace CozyWorldGeneration.Data.Tilesets
                 return;
             }
 
-            // Find where the base is in the array
             var basePosition = System.Array.IndexOf(configIndices, baseIndex);
 
-            // Generate all rotations relative to the base
             for (var i = 0; i < configIndices.Length; i++)
             {
                 var rotationSteps = (i - basePosition + configIndices.Length) % configIndices.Length;
@@ -113,36 +98,35 @@ namespace CozyWorldGeneration.Data.Tilesets
         /// </summary>
         private int FindBaseConfigIndex(TileType type, float rotation)
         {
-            // Normalize rotation to 0-360
             rotation = rotation % 360f;
             if (rotation < 0) rotation += 360f;
 
             switch (type)
             {
                 case TileType.Corner:
-                    if (Mathf.Approximately(rotation, 0f)) return 1; // Bottom-left
-                    if (Mathf.Approximately(rotation, 90f)) return 4; // Top-left (rotate 90° CCW)
-                    if (Mathf.Approximately(rotation, 180f)) return 8; // Top-right (rotate 180°)
-                    if (Mathf.Approximately(rotation, 270f)) return 2; // Bottom-right (rotate 270° CCW)
+                    if (Mathf.Approximately(rotation, 0f)) return 1;
+                    if (Mathf.Approximately(rotation, 90f)) return 4;
+                    if (Mathf.Approximately(rotation, 180f)) return 8;
+                    if (Mathf.Approximately(rotation, 270f)) return 2;
                     break;
 
                 case TileType.Edge:
-                    if (Mathf.Approximately(rotation, 0f)) return 3; // Bottom
-                    if (Mathf.Approximately(rotation, 90f)) return 5; // Left
-                    if (Mathf.Approximately(rotation, 180f)) return 12; // Top
-                    if (Mathf.Approximately(rotation, 270f)) return 10; // Right
+                    if (Mathf.Approximately(rotation, 0f)) return 3;
+                    if (Mathf.Approximately(rotation, 90f)) return 5;
+                    if (Mathf.Approximately(rotation, 180f)) return 12;
+                    if (Mathf.Approximately(rotation, 270f)) return 10;
                     break;
 
                 case TileType.Diagonal:
-                    if (Mathf.Approximately(rotation, 0f)) return 9; // BL + TR filled
-                    if (Mathf.Approximately(rotation, 90f)) return 6; // BR + TL filled
+                    if (Mathf.Approximately(rotation, 0f)) return 9;
+                    if (Mathf.Approximately(rotation, 90f)) return 6;
                     break;
 
                 case TileType.InnerCorner:
-                    if (Mathf.Approximately(rotation, 0f)) return 11; // Missing top-left
-                    if (Mathf.Approximately(rotation, 90f)) return 7; // Missing top-right
-                    if (Mathf.Approximately(rotation, 180f)) return 13; // Missing bottom-right
-                    if (Mathf.Approximately(rotation, 270f)) return 14; // Missing bottom-left
+                    if (Mathf.Approximately(rotation, 0f)) return 11;
+                    if (Mathf.Approximately(rotation, 90f)) return 7;
+                    if (Mathf.Approximately(rotation, 180f)) return 13;
+                    if (Mathf.Approximately(rotation, 270f)) return 14;
                     break;
             }
 
@@ -152,27 +136,23 @@ namespace CozyWorldGeneration.Data.Tilesets
         private int[] GetCornerConfigs()
         {
             return new int[] { 1, 4, 8, 2 };
-            // 0°, 90°, 180°, 270°
         }
 
         private int[] GetEdgeConfigs()
         {
-            return new int[] { 3, 5, 12, 10 }; // bottom, left, top, right
+            return new int[] { 3, 5, 12, 10 };
         }
 
         private int[] GetDiagonalConfigs()
         {
-            return new int[] { 9, 6 }; // BL+TR at 0°, BR+TL at 90°
+            return new int[] { 9, 6 };
         }
 
         private int[] GetInteriorCornerConfigs()
         {
-            return new int[] { 11, 7, 13, 14 }; // TL, TR, BR, BL missing (0°, 90°, 180°, 270°)
+            return new int[] { 11, 7, 13, 14 };
         }
 
-        /// <summary>
-        /// Gets the configuration for a specific index.
-        /// </summary>
         public TileConfiguration GetConfiguration(int configIndex)
         {
             if (configIndex < 0 || configIndex >= 16)

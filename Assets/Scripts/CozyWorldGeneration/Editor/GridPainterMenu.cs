@@ -9,7 +9,7 @@ using UnityEngine;
 namespace CozyWorldGeneration.Editor
 {
     /// <summary>
-    /// Menu items for the Grid Painter system.
+    /// Menu items under Tools/Cozy World Generation/.
     /// </summary>
     public static class GridPainterMenu
     {
@@ -26,7 +26,6 @@ namespace CozyWorldGeneration.Editor
                 return;
             }
 
-            // Use TryGetOverlay with the overlay ID (which is the display name)
             if (sceneView.TryGetOverlay("Grid Painter", out var overlay))
             {
                 overlay.displayed = !overlay.displayed;
@@ -124,7 +123,6 @@ namespace CozyWorldGeneration.Editor
 
             var clearedCount = 0;
 
-            // Clear world layers
             if (gridManager.WorldLayerCollection != null)
                 foreach (var layer in gridManager.WorldLayerCollection.Layers)
                     if (layer != null)
@@ -134,7 +132,6 @@ namespace CozyWorldGeneration.Editor
                         clearedCount++;
                     }
 
-            // Clear visual layers
             if (gridManager.VisualLayerCollection != null)
                 foreach (var layer in gridManager.VisualLayerCollection.Layers)
                     if (layer != null)

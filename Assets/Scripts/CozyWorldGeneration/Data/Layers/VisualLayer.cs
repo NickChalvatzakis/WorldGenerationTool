@@ -73,7 +73,6 @@ namespace CozyWorldGeneration.Data.Layers
             if (tilesets == null || tilesets.Count == 0)
                 return null;
 
-            // Calculate total weight
             var totalWeight = 0f;
             foreach (var weighted in tilesets)
                 if (weighted.tileset != null)
@@ -82,7 +81,6 @@ namespace CozyWorldGeneration.Data.Layers
             if (totalWeight <= 0)
                 return tilesets[0]?.tileset;
 
-            // Random selection based on weight
             var randomValue = Random.Range(0f, totalWeight);
             var currentWeight = 0f;
 

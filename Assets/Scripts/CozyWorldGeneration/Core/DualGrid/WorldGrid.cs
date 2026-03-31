@@ -40,9 +40,6 @@ namespace CozyWorldGeneration.Core.DualGrid
             return GetTile(x, y, level) != null;
         }
 
-        /// <summary>
-        /// Checks if a specific layer has a tile at this position.
-        /// </summary>
         public bool HasTileForLayer(int x, int y, WorldLayer layer)
         {
             if (layer == null) return false;
@@ -89,14 +86,12 @@ namespace CozyWorldGeneration.Core.DualGrid
 
             var tile = GetTile(x, y, level);
 
-            // Create tile if it doesn't exist
             if (tile == null)
             {
                 tile = new WorldTile(x, y, null);
                 SetTile(x, y, level, tile);
             }
 
-            // Create or update fluid data
             if (tile.Fluid == null)
             {
                 tile.Fluid = new FluidData(type, fillLevel);
@@ -118,7 +113,6 @@ namespace CozyWorldGeneration.Core.DualGrid
 
             tile.Fluid = null;
 
-            // If tile has no solid layer either, remove it completely
             if (!tile.IsSolid) SetTile(x, y, level, null);
 
             if (!SuppressEvents)
@@ -152,7 +146,7 @@ namespace CozyWorldGeneration.Core.DualGrid
                 if (!IsValidPosition(pos.x, pos.y)) continue;
                 if (HasFluid(pos.x, pos.y, pos.z)) continue;
                 if (HasSolidTile(pos.x, pos.y, pos.z)) continue;
-                if (!HasSolidBelow(pos.x, pos.y, pos.z)) continue; // must have a surface to stand on
+                if (!HasSolidBelow(pos.x, pos.y, pos.z)) continue;
                 result.Add(pos);
             }
 

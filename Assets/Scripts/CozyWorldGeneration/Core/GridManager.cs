@@ -9,6 +9,9 @@ using UnityEngine;
 
 namespace CozyWorldGeneration.Core
 {
+    /// <summary>
+    /// Orchestrates world grid data, visual grids, fluid simulation wiring, and save/load hooks.
+    /// </summary>
     [ExecuteAlways]
     public class GridManager : MonoBehaviour
     {
@@ -87,8 +90,6 @@ namespace CozyWorldGeneration.Core
             {
                 WorldSaveManager.ApplySaveData(this, saveData);
                 worldName = saveName;
-
-                // Refresh all visual grids to reconstruct visual tiles
                 RefreshAllVisualGrids();
 
                 Debug.Log($"[GridManager] Loaded world '{saveName}' and refreshed visuals");
@@ -172,7 +173,6 @@ namespace CozyWorldGeneration.Core
 #if UNITY_EDITOR
         private void OnValidate()
         {
-            // if (WorldGrid == null) InitializeGrids();
         }
 
         private void Reset()
@@ -181,6 +181,9 @@ namespace CozyWorldGeneration.Core
         }
 #endif
 
+        /// <summary>
+        /// Initializes world/visual grids and wires layer-driven visual rendering.
+        /// </summary>
         public void InitializeGrids()
         {
             if (worldLayerCollection == null) worldLayerCollection = new WorldLayerCollection("World Layers");
@@ -195,13 +198,9 @@ namespace CozyWorldGeneration.Core
             }
 
             WorldGrid = new WorldGrid(gridWidth, gridHeight, gridMaxLevels);
-
-            // Create visual grids for solid layers
             foreach (var layer in worldLayerCollection.Layers)
                 if (layer != null)
                     CreateVisualGridForLayer(layer);
-
-            // Create visual grid for fluids if enabled
             if (enableFluids)
                 CreateFluidVisualGrid();
 
@@ -221,7 +220,6 @@ namespace CozyWorldGeneration.Core
             container.transform.SetParent(visualTilesContainer);
             container.hideFlags = HideFlags.DontSave;
 
-            // Auto-offset based on layer index
             var layerIndex = worldLayerCollection.Layers.IndexOf(layer);
             container.transform.localPosition = new Vector3(0, layerIndex * -0.05f, 0);
 
@@ -238,8 +236,7 @@ namespace CozyWorldGeneration.Core
         }
 
         /// <summary>
-        /// Creates a visual grid specifically for fluid rendering.
-        /// This uses the existing VisualGrid system but checks for fluid presence instead of solid tiles.
+        /// Creates the dedicated visual grid that renders fluid occupancy.
         /// </summary>
         private void CreateFluidVisualGrid()
         {
@@ -249,7 +246,6 @@ namespace CozyWorldGeneration.Core
                 return;
             }
 
-            // Get the fluid visual layer from the collection
             var fluidVisualLayer = visualLayerCollection.GetFluidVisualLayer();
             if (fluidVisualLayer == null)
             {
@@ -258,8 +254,6 @@ namespace CozyWorldGeneration.Core
                 return;
             }
 
-            // Create a temporary WorldLayer reference for the VisualGrid constructor
-            // LayerLevel doesn't matter since we check all levels for fluids
             var fluidWorldLayer = ScriptableObject.CreateInstance<WorldLayer>();
             fluidWorldLayer.LayerLevel = 0;
             fluidWorldLayer.LayerName = "Fluid_Internal";
@@ -273,7 +267,6 @@ namespace CozyWorldGeneration.Core
 
             fluidVisualGrid.TilesContainer = container.transform;
 
-            // Always return the fluid visual layer, regardless of which WorldLayer is passed
             fluidVisualGrid.GetVisualLayerForWorldLayer = (worldLayer) => fluidVisualLayer;
 
             Debug.Log($"[GridManager] Created fluid visual grid using layer: {fluidVisualLayer.LayerName}");
@@ -312,7 +305,6 @@ namespace CozyWorldGeneration.Core
             ToolEvents.OnTileChanged += HandleTileChanged;
             ToolEvents.OnGridCleared += HandleGridCleared;
 
-            // Subscribe to fluid events
             if (enableFluids)
             {
                 ToolEvents.OnFluidSimulationTick += HandleFluidSimulationTick;
@@ -326,7 +318,6 @@ namespace CozyWorldGeneration.Core
             ToolEvents.OnTileChanged -= HandleTileChanged;
             ToolEvents.OnGridCleared -= HandleGridCleared;
 
-            // Unsubscribe from fluid events
             if (enableFluids)
             {
                 ToolEvents.OnFluidSimulationTick -= HandleFluidSimulationTick;
@@ -337,17 +328,13 @@ namespace CozyWorldGeneration.Core
 
         private void HandleGridCleared()
         {
-            // Clear solid layer visuals
             foreach (var visualGrid in visualGrids.Values)
                 visualGrid?.Clear();
-
-            // Clear fluid visuals
             fluidVisualGrid?.Clear();
         }
 
         private void HandleTileChanged(int x, int y)
         {
-            // Update solid layer visuals
             foreach (var kvp in visualGrids)
             {
                 var visualGrid = kvp.Value;
@@ -358,21 +345,12 @@ namespace CozyWorldGeneration.Core
             }
         }
 
-        /// <summary>
-        /// Called every fluid simulation tick to refresh fluid visuals.
-        /// </summary>
         private void HandleFluidSimulationTick()
         {
             if (fluidVisualGrid == null) return;
-
-            // Full refresh of all fluid visuals
             fluidVisualGrid.UpdateAllVisuals();
         }
 
-        /// <summary>
-        /// Called when fluid is placed at a specific position.
-        /// Updates the surrounding visual tiles.
-        /// </summary>
         private void HandleFluidChanged(WorldTile tile)
         {
             if (fluidVisualGrid == null)
@@ -386,26 +364,18 @@ namespace CozyWorldGeneration.Core
 
             Debug.Log($"[GridManager] HandleFluidChanged at ({x}, {y}) FillLevel: {tile.Fluid.FillLevel}");
 
-
-            // Update the visual tiles around this position
             fluidVisualGrid.UpdateVisualFluidTile(x - 1, y - 1);
             fluidVisualGrid.UpdateVisualFluidTile(x, y - 1);
             fluidVisualGrid.UpdateVisualFluidTile(x - 1, y);
             fluidVisualGrid.UpdateVisualFluidTile(x, y);
         }
 
-        /// <summary>
-        /// Called when fluid is removed from a position.
-        /// Updates the surrounding visual tiles.
-        /// </summary>
         private void HandleFluidRemoved(Vector3Int position)
         {
             if (fluidVisualGrid == null) return;
 
             var x = position.x;
             var y = position.y;
-
-            // Update the visual tiles around this position
             fluidVisualGrid.UpdateVisualFluidTile(x - 1, y - 1);
             fluidVisualGrid.UpdateVisualFluidTile(x, y - 1);
             fluidVisualGrid.UpdateVisualFluidTile(x - 1, y);
@@ -466,8 +436,6 @@ namespace CozyWorldGeneration.Core
 
             fluidVisualGrid?.Clear();
             fluidVisualGrid = null;
-
-            // Destroy the entire visual tiles container and all its children
             if (visualTilesContainer != null)
             {
                 if (Application.isPlaying)
@@ -537,7 +505,6 @@ namespace CozyWorldGeneration.Core
                     tileColor.a = 0.3f;
                     Gizmos.color = tileColor;
 
-                    // Offset gizmo Y based on level for visibility
                     var yOffset = 0.01f + level * 0.02f;
 
                     var corners = new Vector3[4]
@@ -608,7 +575,6 @@ namespace CozyWorldGeneration.Core
             var offsetX = tileSize * 0.5f;
             var offsetZ = tileSize * 0.5f;
 
-            // Draw fluid grid outline
             for (var y = 0; y <= gridHeight - 1; y++)
             {
                 var start = new Vector3(offsetX, 0.01f, y * tileSize + offsetZ);
@@ -623,7 +589,6 @@ namespace CozyWorldGeneration.Core
                 Gizmos.DrawLine(start, end);
             }
 
-            // Draw fluid tiles
             for (var x = 0; x < gridWidth - 1; x++)
             for (var y = 0; y < gridHeight - 1; y++)
             {
@@ -683,56 +648,23 @@ namespace CozyWorldGeneration.Core
                 return;
             }
 
-            Debug.Log($"[GridManager] VisualLayerCollection: {(visualLayerCollection != null ? "EXISTS" : "NULL")}");
-            if (visualLayerCollection != null)
-            {
-                Debug.Log($"[GridManager] VisualLayer count: {visualLayerCollection.Layers?.Count ?? 0}");
-                foreach (var vl in visualLayerCollection.Layers)
-                    if (vl is VisualLayer visualLayer)
-                        Debug.Log(
-                            $"[GridManager] VisualLayer '{visualLayer.LayerName}' -> AssignedWorldLayer: {(visualLayer.AssignedWorldLayer != null ? visualLayer.AssignedWorldLayer.LayerName : "NULL")}");
-            }
-
-
-            Debug.Log($"[GridManager] RefreshAllVisualGrids - visualGrids count: {visualGrids.Count}");
-
-            // Refresh solid layer visuals
             foreach (var kvp in visualGrids)
             {
                 var layer = kvp.Key;
                 var visualGrid = kvp.Value;
-
-                // CHECK: Is the container still valid?
                 if (visualGrid.TilesContainer == null)
                 {
-                    Debug.LogWarning(
-                        $"[GridManager] TilesContainer is null for layer {layer.LayerName} - recreating...");
+                    Debug.LogWarning($"[GridManager] TilesContainer is null for layer {layer.LayerName} - recreating...");
                     RecreateVisualGridContainer(layer, visualGrid);
                 }
 
-                // CHECK: Can we get a visual layer?
                 var visualLayer = visualLayerCollection?.GetVisualLayerForWorldLayer(layer);
                 if (visualLayer == null)
                     Debug.LogWarning($"[GridManager] No VisualLayer found for WorldLayer '{layer.LayerName}'");
 
-                Debug.Log(
-                    $"[GridManager] Refreshing layer: {layer.LayerName}, TilesContainer: {visualGrid.TilesContainer != null}, VisualLayer: {visualLayer?.LayerName ?? "NULL"}");
-
                 visualGrid.UpdateAllVisuals();
-
-                var tilesUpdated = 0;
-                for (var x = 0; x < visualGrid.Width; x++)
-                for (var y = 0; y < visualGrid.Height; y++)
-                {
-                    var tile = visualGrid.GetTile(x, y);
-                    if (tile != null && tile.ConfigurationIndex > 0)
-                        tilesUpdated++;
-                }
-
-                Debug.Log($"[GridManager] Layer {layer.LayerName} - tiles with config > 0: {tilesUpdated}");
             }
 
-            // Refresh fluid visuals
             if (fluidVisualGrid != null)
             {
                 if (fluidVisualGrid.TilesContainer == null)
@@ -741,14 +673,12 @@ namespace CozyWorldGeneration.Core
                     RecreateFluidVisualGridContainer();
                 }
 
-                Debug.Log("[GridManager] Refreshing fluid visual grid");
                 fluidVisualGrid.UpdateAllVisuals();
             }
         }
 
         private void RecreateVisualGridContainer(WorldLayer layer, VisualGrid visualGrid)
         {
-            // Ensure parent container exists
             if (visualTilesContainer == null)
             {
                 var container = new GameObject("Visual Tiles");
