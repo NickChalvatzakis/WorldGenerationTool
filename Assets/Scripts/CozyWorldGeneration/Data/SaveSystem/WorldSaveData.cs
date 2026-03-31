@@ -52,7 +52,7 @@ namespace CozyWorldGeneration.Data.SaveSystem
         public SerializableColor layerColor;
         public bool isEnabled;
 
-        // NEW: Store the asset path for editor reloading
+        // Editor-only: used to reload the asset by path when GUID/name lookup fails.
         public string assetPath;
 
         public List<TileSaveData> tiles = new();

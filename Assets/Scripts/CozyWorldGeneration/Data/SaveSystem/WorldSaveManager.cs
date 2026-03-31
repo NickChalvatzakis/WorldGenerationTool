@@ -112,7 +112,6 @@ namespace CozyWorldGeneration.Core.SaveSystem
                 )
             };
 
-            // Save WorldLayers
             if (gridManager.WorldLayerCollection?.Layers != null)
                 foreach (var layer in gridManager.WorldLayerCollection.Layers)
                 {
@@ -141,7 +140,6 @@ namespace CozyWorldGeneration.Core.SaveSystem
                     saveData.layers.Add(layerData);
                 }
 
-            // Save VisualLayers
             if (gridManager.VisualLayerCollection?.Layers != null)
                 foreach (var visualLayer in gridManager.VisualLayerCollection.Layers)
                 {
@@ -195,7 +193,6 @@ namespace CozyWorldGeneration.Core.SaveSystem
             // Apply VisualLayers FIRST (so they're available when we refresh)
             ApplyVisualLayers(gridManager, saveData);
 
-            // Clear and rebuild WorldGrid
             gridManager.WorldGrid.SuppressEvents = true;
             gridManager.WorldGrid.Clear();
 
@@ -252,7 +249,6 @@ namespace CozyWorldGeneration.Core.SaveSystem
             }
 
 #if UNITY_EDITOR
-            // Ensure VisualLayerCollection exists
             if (gridManager.VisualLayerCollection == null)
             {
                 Debug.LogWarning("[WorldSaveManager] VisualLayerCollection is null - cannot load visual layers");
@@ -290,7 +286,6 @@ namespace CozyWorldGeneration.Core.SaveSystem
                     continue;
                 }
 
-                // Update properties
                 visualLayer.IsEnabled = visualLayerData.isEnabled;
                 visualLayer.IsFluidLayer = visualLayerData.isFluidLayer;
                 visualLayer.VisualHeight = visualLayerData.visualHeight;

@@ -68,10 +68,8 @@ namespace CozyWorldGeneration.Core.DualGrid
             if (tile == null)
                 return;
 
-            // Get the visual layer to check if it's a fluid layer
             var visualLayer = GetVisualLayerForWorldLayer?.Invoke(worldLayer);
 
-            // Check the 4 corners - for fluids OR solid tiles depending on layer type
             var bottomLeft =
                 worldGrid.HasTileForLayer(x + NEIGHBOUR_OFFSETS[0].x, y + NEIGHBOUR_OFFSETS[0].y, worldLayer);
 
@@ -174,7 +172,6 @@ namespace CozyWorldGeneration.Core.DualGrid
         {
             if (checkAllLevels)
             {
-                // Check all levels for any fluid
                 for (var checkLevel = 0; checkLevel < 10; checkLevel++)
                     if (worldGrid.HasFluid(x, y, checkLevel))
                         return true;
@@ -182,7 +179,6 @@ namespace CozyWorldGeneration.Core.DualGrid
             }
             else
             {
-                // Check only the specific level
                 return worldGrid.HasFluid(x, y, level);
             }
         }
@@ -194,7 +190,6 @@ namespace CozyWorldGeneration.Core.DualGrid
         {
             if (checkAllLevels)
             {
-                // Return the highest level fluid tile
                 for (var checkLevel = 9; checkLevel >= 0; checkLevel--)
                 {
                     var tile = worldGrid.GetTile(x, y, checkLevel);
@@ -206,7 +201,6 @@ namespace CozyWorldGeneration.Core.DualGrid
             }
             else
             {
-                // Check only the specific level
                 return worldGrid.GetTile(x, y, level);
             }
         }

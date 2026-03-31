@@ -27,7 +27,6 @@ namespace CozyWorldGeneration.Core.DualGrid
         public void SetVisualLayer(VisualLayer layer)
         {
             visualLayer = layer;
-            // Select a random tileset when layer is assigned
             if (layer != null) selectedTileset = layer.GetRandomTileset();
         }
 

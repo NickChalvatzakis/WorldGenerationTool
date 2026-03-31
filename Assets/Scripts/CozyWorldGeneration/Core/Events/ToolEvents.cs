@@ -51,7 +51,6 @@ namespace CozyWorldGeneration.Core.Events
 
         #region Event Invocation Methods
 
-        // Layer Events
         public static void TriggerLayerAdded(WorldLayer layer)
         {
             OnLayerAdded?.Invoke(layer);
@@ -67,8 +66,6 @@ namespace CozyWorldGeneration.Core.Events
             OnLayerCleared?.Invoke(layer);
         }
 
-
-        // Grid Events
         public static void TriggerTilePlaced(int x, int y, TileType tileType, WorldLayer sourceLayer)
         {
             OnTilePlaced?.Invoke(x, y, tileType, sourceLayer);
@@ -94,7 +91,6 @@ namespace CozyWorldGeneration.Core.Events
             OnGridInitialized?.Invoke(width, height);
         }
 
-        // Fluid Events
         public static void TriggerFluidPlaced(WorldTile tile)
         {
             OnFluidPlaced?.Invoke(tile);
@@ -125,7 +121,6 @@ namespace CozyWorldGeneration.Core.Events
             OnFluidSimulationTick?.Invoke();
         }
 
-        // Painting Events
         public static void TriggerPaintingStarted(WorldLayer layer)
         {
             OnPaintingStarted?.Invoke(layer);
@@ -150,19 +145,16 @@ namespace CozyWorldGeneration.Core.Events
         /// </summary>
         public static void ClearAllEvents()
         {
-            // Layer Events
             OnLayerAdded = null;
             OnLayerRemoved = null;
             OnLayerCleared = null;
 
-            // Grid Events
             OnTilePlaced = null;
             OnTileRemoved = null;
             OnTileChanged = null;
             OnGridCleared = null;
             OnGridInitialized = null;
 
-            // Fluid Events
             OnFluidPlaced = null;
             OnFluidRemoved = null;
             OnFluidBodySettled = null;
@@ -170,7 +162,6 @@ namespace CozyWorldGeneration.Core.Events
             OnFluidBodySpread = null;
             OnFluidSimulationTick = null;
 
-            // Painting Events
             OnPaintingStarted = null;
             OnPaintingStopped = null;
             OnActiveLayerChanged = null;

@@ -128,7 +128,6 @@ namespace CozyWorldGeneration.Editor
             var fluidSettingsFoldout = new Foldout { text = "Fluid Settings", value = true };
             fluidSettingsFoldout.style.marginTop = 10;
 
-            // Enable Fluids Toggle
             var enableFluidsToggle = new Toggle("Enable Fluids")
             {
                 value = serializedObject.FindProperty("enableFluids").boolValue
@@ -139,7 +138,6 @@ namespace CozyWorldGeneration.Editor
                 serializedObject.ApplyModifiedProperties();
             });
 
-            // Fluid Visual Height Offset
             var fluidHeightOffsetField = new FloatField("Fluid Height Offset")
             {
                 value = serializedObject.FindProperty("fluidVisualHeightOffset").floatValue
@@ -150,7 +148,6 @@ namespace CozyWorldGeneration.Editor
                 serializedObject.ApplyModifiedProperties();
             });
 
-            // Runtime Info
             var runtimeInfoContainer = new VisualElement();
             runtimeInfoContainer.style.marginTop = 10;
             runtimeInfoContainer.style.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 0.3f);
@@ -170,7 +167,6 @@ namespace CozyWorldGeneration.Editor
             var fluidTileCountLabel = new Label("Fluid Tiles: --");
             var fluidBodyCountLabel = new Label("Fluid Bodies: --");
 
-            // Update runtime info periodically
             runtimeInfoContainer.schedule.Execute(() =>
             {
                 if (gridManager != null && gridManager.WorldGrid != null && gridManager.FluidSimulator != null)
@@ -190,7 +186,6 @@ namespace CozyWorldGeneration.Editor
             runtimeInfoContainer.Add(fluidTileCountLabel);
             runtimeInfoContainer.Add(fluidBodyCountLabel);
 
-            // Clear Fluids Button
             var clearFluidsBtn = new Button(() =>
             {
                 if (gridManager.WorldGrid == null)
@@ -254,7 +249,6 @@ namespace CozyWorldGeneration.Editor
             saveLoadFoldout.style.borderTopLeftRadius = 4;
             saveLoadFoldout.style.borderTopRightRadius = 4;
 
-            // World Name Field
             var worldNameField = new TextField("World Name")
             {
                 value = serializedObject.FindProperty("worldName").stringValue
@@ -266,7 +260,6 @@ namespace CozyWorldGeneration.Editor
             });
             saveLoadFoldout.Add(worldNameField);
 
-            // Auto Load Toggle
             var autoLoadToggle = new Toggle("Auto Load On Start")
             {
                 value = serializedObject.FindProperty("autoLoadOnStart").boolValue
@@ -278,7 +271,6 @@ namespace CozyWorldGeneration.Editor
             });
             saveLoadFoldout.Add(autoLoadToggle);
 
-            // Format Selection
             var formatField = new EnumField("Save Format", WorldSaveManager.SaveFormat.JSON);
             formatField.value = (WorldSaveManager.SaveFormat)serializedObject.FindProperty("saveFormat").enumValueIndex;
             formatField.RegisterValueChangedCallback(evt =>
@@ -289,25 +281,18 @@ namespace CozyWorldGeneration.Editor
             });
             saveLoadFoldout.Add(formatField);
 
-            // Buttons Container
             var buttonsContainer = new VisualElement();
             buttonsContainer.style.flexDirection = FlexDirection.Row;
             buttonsContainer.style.marginTop = 5;
             buttonsContainer.style.marginBottom = 5;
 
-            var saveBtn = new Button(() => SaveWorld())
-            {
-                text = "Save World"
-            };
+            var saveBtn = new Button(() => SaveWorld()) { text = "Save World" };
             saveBtn.style.flexGrow = 1;
             saveBtn.style.height = 30;
             saveBtn.style.marginRight = 5;
             saveBtn.style.backgroundColor = new Color(0.2f, 0.6f, 0.2f);
 
-            var loadBtn = new Button(() => LoadWorld())
-            {
-                text = "Load World"
-            };
+            var loadBtn = new Button(() => LoadWorld()) { text = "Load World" };
             loadBtn.style.flexGrow = 1;
             loadBtn.style.height = 30;
             loadBtn.style.backgroundColor = new Color(0.2f, 0.4f, 0.6f);
@@ -316,7 +301,6 @@ namespace CozyWorldGeneration.Editor
             buttonsContainer.Add(loadBtn);
             saveLoadFoldout.Add(buttonsContainer);
 
-            // Separator
             var separator = new VisualElement();
             separator.style.height = 1;
             separator.style.backgroundColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
@@ -324,25 +308,18 @@ namespace CozyWorldGeneration.Editor
             separator.style.marginBottom = 5;
             saveLoadFoldout.Add(separator);
 
-            // Available Saves Label
             var savesLabel = new Label("Available Saves:");
             savesLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
             savesLabel.style.marginBottom = 5;
             saveLoadFoldout.Add(savesLabel);
 
-            // Save List Container (will be populated dynamically)
             saveListContainer = new VisualElement();
             saveLoadFoldout.Add(saveListContainer);
 
-            // Refresh Button
-            var refreshBtn = new Button(() => RefreshSaveList())
-            {
-                text = "🔄 Refresh List"
-            };
+            var refreshBtn = new Button(() => RefreshSaveList()) { text = "🔄 Refresh List" };
             refreshBtn.style.marginTop = 5;
             saveLoadFoldout.Add(refreshBtn);
 
-            // Initial population
             RefreshSaveList();
 
             root.Add(saveLoadFoldout);
@@ -381,7 +358,6 @@ namespace CozyWorldGeneration.Editor
             {
                 gridManager.LoadWorld();
 
-                // Refresh the UI
                 RefreshWorldLayers();
                 SceneView.RepaintAll();
 
@@ -470,7 +446,6 @@ namespace CozyWorldGeneration.Editor
 
         private void CreateLayerCollectionSection()
         {
-            // World Layers
             worldLayersFoldout = new Foldout { text = "World Layers", value = true };
             worldLayersFoldout.style.marginTop = 10;
 
@@ -507,7 +482,6 @@ namespace CozyWorldGeneration.Editor
             RefreshWorldLayers();
             root.Add(worldLayersFoldout);
 
-            // Visual Layers
             visualLayersFoldout = new Foldout { text = "Visual Layers", value = true };
             visualLayersFoldout.style.marginTop = 10;
 

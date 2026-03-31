@@ -91,7 +91,6 @@ namespace CozyWorldGeneration.Editor
             root.style.borderTopLeftRadius = 5;
             root.style.borderTopRightRadius = 5;
 
-            // Title
             var titleLabel = new Label("Grid Painter");
             titleLabel.style.fontSize = 14;
             titleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
@@ -99,7 +98,6 @@ namespace CozyWorldGeneration.Editor
             titleLabel.style.color = Color.white;
             root.Add(titleLabel);
 
-            // Paint Mode Toggle
             var modeContainer = new VisualElement();
             modeContainer.style.flexDirection = FlexDirection.Row;
             modeContainer.style.marginBottom = 10;
@@ -114,7 +112,6 @@ namespace CozyWorldGeneration.Editor
             modeContainer.Add(fluidModeBtn);
             root.Add(modeContainer);
 
-            // Info section
             var infoLabel = new Label("Select a GridManager in the scene");
             infoLabel.style.fontSize = 10;
             infoLabel.style.color = new Color(0.7f, 0.7f, 0.7f);
@@ -122,12 +119,10 @@ namespace CozyWorldGeneration.Editor
             infoLabel.style.marginBottom = 10;
             root.Add(infoLabel);
 
-            // Refresh button
             var refreshButton = new Button(RefreshGridManager) { text = "Refresh" };
             refreshButton.style.marginBottom = 10;
             root.Add(refreshButton);
 
-            // Brush Size
             var brushSizeContainer = new VisualElement();
             brushSizeContainer.style.marginBottom = 10;
 
@@ -147,17 +142,14 @@ namespace CozyWorldGeneration.Editor
             brushSizeContainer.Add(brushSizeSlider);
             root.Add(brushSizeContainer);
 
-            // Terrain Settings Container
             terrainSettingsContainer = new VisualElement();
             root.Add(terrainSettingsContainer);
 
-            // Fluid Settings Container
             fluidSettingsContainer = new VisualElement();
             fluidSettingsContainer.style.display = DisplayStyle.None;
             CreateFluidSettings();
             root.Add(fluidSettingsContainer);
 
-            // Layer scroll view
             layerScrollView = new ScrollView();
             layerScrollView.style.maxHeight = 300;
             root.Add(layerScrollView);
@@ -176,7 +168,6 @@ namespace CozyWorldGeneration.Editor
             fluidLabel.style.marginBottom = 5;
             fluidSettingsContainer.Add(fluidLabel);
 
-            // Fluid Amount
             var amountLabel = new Label($"Amount: {fluidAmount}/7");
             amountLabel.style.color = Color.white;
 
@@ -190,13 +181,11 @@ namespace CozyWorldGeneration.Editor
             fluidSettingsContainer.Add(amountLabel);
             fluidSettingsContainer.Add(amountSlider);
 
-            // Source Toggle
             var sourceToggle = new Toggle("Place as Source") { value = placeAsSource };
             sourceToggle.style.marginTop = 5;
             sourceToggle.RegisterValueChangedCallback(evt => { placeAsSource = evt.newValue; });
             fluidSettingsContainer.Add(sourceToggle);
 
-            // Clear Fluids Button
             var clearFluidsBtn = new Button(() => ClearAllFluids()) { text = "Clear All Fluids" };
             clearFluidsBtn.style.marginTop = 10;
             clearFluidsBtn.style.backgroundColor = new Color(0.5f, 0.2f, 0.2f);
@@ -301,7 +290,6 @@ namespace CozyWorldGeneration.Editor
             fluidTypesLabel.style.color = Color.white;
             layerScrollView.Add(fluidTypesLabel);
 
-            // Find all FluidType assets
             var guids = AssetDatabase.FindAssets("t:FluidType");
 
             if (guids.Length == 0)
